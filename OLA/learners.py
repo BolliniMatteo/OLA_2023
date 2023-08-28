@@ -135,6 +135,7 @@ class Step1UCBLearner(SingleClassLearner, ABC):
         c_est = self.env.C(self.xs)
         if self.history.played_rounds() < self.ps.shape[0]:
             # we have not played each arm at least once
+            # we could also use the +inf given by the estimator and optimize as usually...
             p_t = self.ps[self.history.played_rounds()]
             p_t_ind = self.history.played_rounds()
             # we have no data: we estimate 0.5 for the optimization
@@ -166,10 +167,10 @@ class Step1TSLearner(SingleClassLearner):
 
 class Step2UCBLearner(SingleClassLearner):
     def __init__(self, environment: envs.SingleClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float):
+                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float):
         super().__init__(environment, bids, prices)
-        self.n_estimator = est.GPUCB1Estimator(bids, kernel, alpha)
-        self.c_estimator = est.GPUCB1Estimator(bids, kernel, alpha)
+        self.n_estimator = est.GPUCB1Estimator(bids, kernel, alpha, beta)
+        self.c_estimator = est.GPUCB1Estimator(bids, kernel, alpha, beta)
         self.alphas = np.array([self.env.A[p] for p in prices])
         # in theory, I could compute here the best price
         # and then optimize just the bid,
@@ -190,9 +191,6 @@ class Step2TSLearner(SingleClassLearner):
     def __init__(self, environment: envs.SingleClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                  kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, rng: np.random.Generator):
         super().__init__(environment, bids, prices)
-        self.env = environment
-        self.ps = prices
-        self.xs = bids
         self.n_estimator = est.GPTSEstimator(bids, kernel, alpha, rng)
         self.c_estimator = est.GPTSEstimator(bids, kernel, alpha, rng)
         self.alphas = np.array([self.env.A[p] for p in prices])
@@ -213,29 +211,17 @@ class Step2TSLearner(SingleClassLearner):
 
 class Step3UCBLearner(SingleClassLearner):
     def __init__(self, environment: envs.SingleClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float):
+                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float):
         super().__init__(environment, bids, prices)
-        self.env = environment
-        self.ps = prices
-        self.xs = bids
         self.a_estimator = est.BeUCB1Estimator(prices.shape[0])
-        self.n_estimator = est.GPUCB1Estimator(bids, kernel, alpha)
-        self.c_estimator = est.GPUCB1Estimator(bids, kernel, alpha)
+        self.n_estimator = est.GPUCB1Estimator(bids, kernel, alpha, beta)
+        self.c_estimator = est.GPUCB1Estimator(bids, kernel, alpha, beta)
 
     def play_round(self):
-        # now the GP-UCB: I need at last one round, but should I play every bid at least once?
-        # probably not: given a bid I estimate for the others too with a large margin
-        if self.history.played_rounds() == 0:
-            p_t = self.ps[0]
-            x_t = self.xs[self.xs.shape[0] // 2]
-            n, q, c = self.play_and_save(x_t, p_t)
-            self.a_estimator.update_estimations(0, q, n)
-            self.n_estimator.update_model(x_t, n)
-            self.c_estimator.update_model(x_t, c)
-            return
-
         if self.history.played_rounds() < self.ps.shape[0]:
             # we have not played each arm (price) at least once, and for price there are no GP
+            # obs: we could also use the default +inf from the estimator,
+            # but probably keeping the special case and assigning alpha=0.5 is better
             p_t = self.ps[self.history.played_rounds()]
             p_t_ind = self.history.played_rounds()
             # we have no data: we estimate 0.5 for the optimization

@@ -32,15 +32,20 @@ class BeUCB1Estimator:
     def provide_estimations(self, lower_bound=False):
         """
         Provides the estimation of the average rewards
-        Do not call this method till you haven't player each arm at least one
+        If some arms have not been pulled, it returns +- inf (depending on the lower_bound) for them
         :param lower_bound: True if you want a lower bound, false otherwise
         :return: the estimations (np array)
         """
         t = np.sum(self.play_counts)
+        zero_mask = (self.play_counts == 0)
+        non_zero_mask = np.logical_not(zero_mask)
+        thetas = np.copy(self.means)
         if lower_bound:
-            thetas = self.means - np.sqrt((2*np.log(t))/self.means)
+            thetas[zero_mask] = float('-inf')
+            thetas[non_zero_mask] = thetas[non_zero_mask] - np.sqrt((2*np.log(t))/self.means)
         else:
-            thetas = self.means + np.sqrt((2*np.log(t))/self.means)
+            thetas[zero_mask] = float('+inf')
+            thetas[non_zero_mask] = thetas[non_zero_mask] + np.sqrt((2*np.log(t))/self.means)
         return thetas
 
     def update_estimations(self, played_arm: int, positive_rewards: int, total_rewards: int):
@@ -97,7 +102,9 @@ class BeTSEstimator:
 class BaseGPEstimator:
     """
     Base class for GP-UCB1 and GP-TS
-    it just performs the updates to the GP
+    It keeps stored the means and standard deviations for each arm,
+    and updates both them and the GP when new data arrives.
+    When there are no data, the means are set to 0 and the standard deviations to 3 as default values
     """
     def __init__(self, arms: np.ndarray, kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float):
         """
@@ -106,12 +113,16 @@ class BaseGPEstimator:
         :param alpha: the alpha to be used by the GP
         """
         self.arms = arms
-        # we are not estimating Bernoulli... is normalize_y=True right in this case?
-        # I think yes: in the lab lecture it's not estimating Bernoulli variables
-        self.gp = GaussianProcessRegressor(kernel=kernel, alpha=alpha, normalize_y=True, n_restarts_optimizer=9)
+        # this is from the lab
+        # self.gp = GaussianProcessRegressor(kernel=kernel, alpha=alpha, normalize_y=True, n_restarts_optimizer=9)
+        # this is from Carlos
+        self.gp = GaussianProcessRegressor(kernel=kernel, alpha=alpha ** 2, normalize_y=False)
         # this data could be found also in the environment history, but I prefer to keep this class independent
         self.played_arms = []
         self.rewards = []
+        self.mu_vector = np.zeros(self.arms.shape[0])
+        # We choose a standard deviation of 3 (???)
+        self.sigma_vector = np.ones(self.arms.shape[0]) * 3
 
     def update_model(self, played_arm: int, reward: int):
         """
@@ -127,6 +138,8 @@ class BaseGPEstimator:
         X = np.reshape(x, (x.shape[0], 1))
         y = np.array(self.rewards)
         self.gp.fit(X, y)
+        self.mu_vector, self.sigma_vector = self.gp.predict(np.atleast_2d(self.arms).T,
+                                                            return_std=True)
 
 
 class GPUCB1Estimator(BaseGPEstimator):
@@ -135,20 +148,21 @@ class GPUCB1Estimator(BaseGPEstimator):
     It simply provides the estimations and updates them
     Optimizing and playing are left to the caller
 
-    I'm not sure of how GP-UCB works.
-    I assume you just use the mean+-variance interval that the CP gives you,
-    but probably this is wrong and the interval should use also some sort of UCB-like term different from the variance
-    (we need it to increase if the arm is not pulled for some time)
-
+     GP-UCB implementation as described in "Gaussian Process
+     Optimization in the Bandit Setting: No Regret and Experimental Design"
+     by Srinivas et al.
+     https://icml.cc/Conferences/2010/papers/422.pdf
     """
 
-    def __init__(self, arms: np.ndarray, kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float):
+    def __init__(self, arms: np.ndarray, kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float):
         """
         :param arms: the available arms (here arms are the true values, not their indices)
         :param kernel: the kernel to be used by the GP
         :param alpha: the alpha to be used by the GP
+        :param beta: the parameter used to compute the upper/lower bound by UCB
         """
         super().__init__(arms, kernel, alpha)
+        self.beta = beta
 
     def provide_estimations(self, lower_bound=False):
         """
@@ -157,13 +171,13 @@ class GPUCB1Estimator(BaseGPEstimator):
         :param lower_bound: True if you want a lower bound, false otherwise
         :return: the estimations (np array)
         """
-        means, sigmas = self.gp.predict(self.arms.reshape((self.arms.shape[0], 1)), return_std=True)
-        # just a detail to make sure that sigma is at least a small epsilon
-        sigmas = np.maximum(sigmas, 1e-2)
+
+        # just a detail to make sure that sigma is at least a small epsilon (from the lab)
+        sigmas = np.maximum(self.sigma_vector, 1e-2)
         if lower_bound:
-            thetas = means - sigmas
+            thetas = self.mu_vector - sigmas * np.sqrt(self.beta)
         else:
-            thetas = means + sigmas
+            thetas = self.mu_vector + sigmas * np.sqrt(self.beta)
         return thetas
 
 
@@ -185,7 +199,6 @@ class GPTSEstimator(BaseGPEstimator):
         """
         super().__init__(arms, kernel, alpha)
         self.rng = rng
-        self.updated_at_least_once = False
 
     def provide_estimations(self):
         """
@@ -193,18 +206,10 @@ class GPTSEstimator(BaseGPEstimator):
         Works also if no data is available
         :return: the estimations (np array)
         """
-        # this is the way the professor implements it in the videos
-        # just notice that I don't store means and sigmas as attributes,
-        # but I keep the flag "updated_at_least_once" for the first estimation
-        if self.updated_at_least_once:
-            means, sigmas = self.gp.predict(self.arms.reshape((self.arms.shape[0], 1)), return_std=True)
-            # just a detail to make sure that sigma is at least a small epsilon
-            sigmas = np.maximum(sigmas, 1e-2)
-        else:
-            means, sigmas = np.zeros(self.arms.shape), np.ones(self.arms.shape)*10
-        thetas = self.rng.normal(means, sigmas)
+        # just a detail to make sure that sigma is at least a small epsilon (from the lab)
+        sigmas = np.maximum(self.sigma_vector, 1e-2)
+        thetas = self.rng.normal(self.mu_vector, sigmas)
         return thetas
 
     def update_model(self, played_arm: int, reward: int):
         super().update_model(played_arm, reward)
-        self.updated_at_least_once = True
