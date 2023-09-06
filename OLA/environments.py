@@ -6,6 +6,7 @@ Here I define the environments
 and the objects that keep track of the history and compute statistics
 """
 
+
 class SingleClassEnvironment:
 
     def __init__(self, N, en, C, ec, A, rng):
@@ -119,7 +120,7 @@ class SingleClassEnvironmentHistory:
         self.qs.append(q)
         self.cs.append(c)
 
-    def average_stats(self):
+    def reward_stats(self):
         """
         These stats are computed with the expected rewards
         (without noise)
@@ -138,14 +139,31 @@ class SingleClassEnvironmentHistory:
         """
         ps = np.array(self.ps)
         xs = np.array(self.xs)
+        return self.compute_reward_stats(ps, xs, self.A, self.N, self.C, self.x_best, self.p_best)
 
+    @staticmethod
+    def compute_reward_stats(xs: np.ndarray, ps: np.ndarray,
+                             A: dict, N: callable, C: callable,
+                             best_bid: float, best_price: float):
+        """
+        :return:
+        instantaneous_rewards : np.ndarray
+            the instantaneous rewards for each time step
+        instantaneous_regrets : np.ndarray
+            the instantaneous regrets for each time step
+        cumulative_rewards : np.ndarray
+            the cumulative rewards for each time step
+        cumulative_regrets : np.ndarray
+            the cumulative regrets for each time step
+        """
         # first get the conversions
         # idea from https://stackoverflow.com/questions/16992713/translate-every-element-in-numpy-array-according-to-key
-        alphas = np.vectorize(self.A.get)(ps)
+        alphas = np.vectorize(A.get)(ps)
 
-        instantaneous_rewards = alphas * ps * self.N(xs) - self.C(xs)
+        # here maybe I should use the actual number of conversions and advertising costs with the noise?
+        instantaneous_rewards = alphas * ps * N(xs) - C(xs)
 
-        best_reward = self.A[self.p_best] * self.p_best * self.N(self.x_best) - self.C(self.x_best)
+        best_reward = A[best_price] * best_price * N(best_bid) - C(best_bid)
 
         instantaneous_regrets = best_reward - instantaneous_rewards
 
@@ -224,11 +242,18 @@ class MultiClassEnvironmentHistory:
         self.env = environment
         self.best_bids = best_bids
         self.best_prices = best_prices
+        # for each user profile, the bid for each turn
         self.xs = {}
+        # for each user profile, the price for each turn
         self.ps = {}
+        # for each user profile, the number of clicks for each turn
         self.ns = {}
+        # for each user profile, the number of conversions for each turn
         self.qs = {}
+        # for each user profile, the advertising costs for each turn
         self.cs = {}
+        # the number of turns played so far
+        self.t = 0
         for user_profile in environment.user_profiles:
             self.xs[user_profile] = []
             self.ps[user_profile] = []
@@ -251,7 +276,73 @@ class MultiClassEnvironmentHistory:
             self.ns[user_profile].append(n)
             self.qs[user_profile].append(q)
             self.cs[user_profile].append(c)
+        self.t += 1
 
-    def average_stats(self):
-        # TODO: compute the average stats over an episode with multiple classes
-        pass
+    def played_rounds(self):
+        return self.t
+
+    def stats_for_user_profile(self):
+        """
+
+        :return: (instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets)
+        dictionaries, each one contains, for each user profile, an array with the data for each time step
+        """
+        instantaneous_rewards = {}
+        instantaneous_regrets = {}
+        cumulative_rewards = {}
+        cumulative_regrets = {}
+        for user_profile in self.env.user_profiles:
+            class_index = self.env.class_map[user_profile]
+            res_tuple = SingleClassEnvironmentHistory.compute_reward_stats(np.array(self.xs[user_profile]),
+                                                                           np.array(self.xs[user_profile]),
+                                                                           self.env.a[class_index],
+                                                                           self.env.n[class_index],
+                                                                           self.env.c[class_index],
+                                                                           self.best_bids[class_index],
+                                                                           self.best_prices[class_index])
+            rewards, regrets, cum_rewards, cum_regrets = res_tuple
+            instantaneous_rewards[user_profile] = rewards
+            instantaneous_regrets[user_profile] = regrets
+            cumulative_rewards[user_profile] = cumulative_rewards
+            cumulative_regrets[user_profile] = cumulative_regrets
+        return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
+
+    def stats_for_class(self):
+        """
+
+        :return: instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
+        They are all matrices of shape (n_classes, T)
+        matrix[c,t] = value at time t for class c
+        """
+        # basically instantaneous_rewards[c,t]= reward at time t from users of class c
+        instantaneous_rewards = np.zeros(shape=(max(self.env.class_map.values()), self.played_rounds()))
+        instantaneous_regrets = np.zeros(shape=(max(self.env.class_map.values()), self.played_rounds()))
+        cumulative_rewards = np.zeros(shape=(max(self.env.class_map.values()), self.played_rounds()))
+        cumulative_regrets = np.zeros(shape=(max(self.env.class_map.values()), self.played_rounds()))
+
+        # data for single user profiles
+        rewards, regrets, cum_rewards, cum_regrets = self.stats_for_user_profile()
+
+        # put things together according to the class
+        for user_profile in self.env.user_profiles:
+            c = self.env.class_map[user_profile]
+            instantaneous_rewards[c, :] = instantaneous_rewards[c, :] + rewards[user_profile]
+            instantaneous_regrets[c, :] = instantaneous_regrets[c, :] + regrets[user_profile]
+            cumulative_rewards[c, :] = cumulative_rewards[c, :] + cum_rewards[user_profile]
+            cumulative_regrets[c, :] = cumulative_regrets[c, :] + cum_regrets[user_profile]
+        return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
+
+    def stats_total(self):
+        """
+        :return: instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
+        for each time step, the total (i.e. considering all the classes) values
+        """
+        instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets = self.stats_for_class()
+        instantaneous_rewards = np.sum(instantaneous_rewards, axis=0)
+        instantaneous_regrets = np.sum(instantaneous_regrets, axis=0)
+        cumulative_rewards = np.sum(cumulative_rewards, axis=0)
+        cumulative_regrets = np.sum(cumulative_regrets, axis=0)
+        return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
+
+
+
