@@ -42,10 +42,10 @@ class BeUCB1Estimator:
         thetas = np.copy(self.means)
         if lower_bound:
             thetas[zero_mask] = float('-inf')
-            thetas[non_zero_mask] = thetas[non_zero_mask] - np.sqrt((2*np.log(t))/self.means)
+            thetas[non_zero_mask] = thetas[non_zero_mask] - np.sqrt((2*np.log(t))/self.play_counts)
         else:
             thetas[zero_mask] = float('+inf')
-            thetas[non_zero_mask] = thetas[non_zero_mask] + np.sqrt((2*np.log(t))/self.means)
+            thetas[non_zero_mask] = thetas[non_zero_mask] + np.sqrt((2*np.log(t))/self.play_counts)
         return thetas
 
     def update_estimations(self, played_arm: int, positive_rewards: int, total_rewards: int):
@@ -56,7 +56,7 @@ class BeUCB1Estimator:
         :param total_rewards: the total rewards collected in the last round
         :return: None
         """
-        self.means[played_arm] = self.means[played_arm]*self.play_counts[played_arm] + positive_rewards
+        self.means[played_arm] = self.means[played_arm] * self.play_counts[played_arm] + positive_rewards
         self.play_counts[played_arm] = self.play_counts[played_arm] + total_rewards
         self.means[played_arm] = self.means[played_arm] / self.play_counts[played_arm]
 
