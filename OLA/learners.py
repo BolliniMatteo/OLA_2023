@@ -135,7 +135,7 @@ class Step1UCBLearner(SingleClassLearner, ABC):
         c_est = self.env.C(self.xs)
         if self.history.played_rounds() < self.ps.shape[0]:
             # we have not played each arm at least once
-            # we could also use the +inf given by the estimator and optimize as usually...
+            # we could also use the +inf given by the estimator and optimize as usual...
             p_t = self.ps[self.history.played_rounds()]
             p_t_ind = self.history.played_rounds()
             # we have no data: we estimate 0.5 for the optimization
