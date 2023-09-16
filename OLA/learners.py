@@ -8,7 +8,7 @@ from environments import SingleClassEnvironmentHistory
 from environments import MultiClassEnvironmentHistory
 
 """
-The actual learners for the various step and the optimization functions that hey use
+The actual learners for the various step and the optimization functions that they use
 A learner has to:
 - instantiate the history object, computing the clairvoyant solution 
 - instantiate and use the estimators that it needs
