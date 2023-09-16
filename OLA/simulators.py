@@ -27,7 +27,7 @@ class SingleClassSimResult:
 
 def simulate_single_class(env_init: Callable[[], SingleClassEnvironment],
                           learner_init: Callable[[SingleClassEnvironment], SingleClassLearner],
-                          t: int, n_runs=300):
+                          t: int, n_runs=365):
     """
     Execute n_runs simulations of a single class agent
     and returns the mean and std dev of the reward stats.
