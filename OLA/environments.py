@@ -47,8 +47,12 @@ class SingleClassEnvironment:
         q: int - the number of conversions
         c: float - the advertising costs
         """
-        n = self.N(x) + self.en()
-        samples = self.rng.Binomial(n=1, p=self.A[p], size=n)
+        n = int(self.N(x) + self.en())
+        print(x)
+        print(n)
+        print(p)
+        print(self.A[int(p)])
+        samples = self.rng.binomial(n=1, p=self.A[int(p)], size=n)
         q = np.sum(samples)
         c = self.C(x) + self.ec()
         return n, q, c
@@ -222,7 +226,7 @@ class MultiClassEnvironment:
             n = (self.n[user_class](bid) + self.en()) * user_prob
             n = int(n)
             # I am pretty sure that Binomial exists in the standard generator that we use
-            samples = self.rng.Binomial(n=1, p=self.a[user_class][price], size=n)
+            samples = self.rng.binomial(n=1, p=self.a[user_class][price], size=n)
             q = np.sum(samples)
             c = (self.c[user_class](bid) + self.ec()) * user_prob
             result[user_prof] = (n, q, c)
