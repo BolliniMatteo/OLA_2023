@@ -3,7 +3,7 @@ import sklearn
 
 import environments as envs
 from estimators import BaseGPEstimator
-from learners import single_class_opt
+from OLA.optimization_utilities import single_class_opt
 
 
 def split_data(data: dict, feature: int):
