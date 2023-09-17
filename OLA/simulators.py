@@ -2,8 +2,8 @@ from environments import SingleClassEnvironment
 from environments import SingleClassEnvironmentHistory
 from environments import MultiClassEnvironment
 from environments import MultiClassEnvironmentHistory
-from learners import SingleClassLearner
-from learners import MultiClassLearner
+from base_learners import SingleClassLearner
+from base_learners import MultiClassLearner
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -42,10 +42,12 @@ def simulate_single_class(env_init: Callable[[], SingleClassEnvironment],
     inst_regrets = []
     cum_rewards = []
     cum_regrets = []
-    for _ in range(n_runs):
+    for i in range(n_runs):
+        print('Experiment %d' % i)
         env = env_init()
         learner = learner_init(env)
-        for _ in range(t):
+        for j in range(t):
+            print('Iteration %d of experiment %d' % (j, i))
             learner.play_round()
         rewards, regrets, c_rewards, c_regrets = learner.history.reward_stats()
         inst_rewards.append(rewards)
