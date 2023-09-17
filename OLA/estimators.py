@@ -124,7 +124,7 @@ class BaseGPEstimator:
         # We choose a standard deviation of 3 (???)
         self.sigma_vector = np.ones(self.arms.shape[0]) * 3
 
-    def update_model(self, played_arm: int, reward: int):
+    def update_model(self, played_arm: int, reward: int | float):
         """
         Updates the internal attributes for the estimations
         :param played_arm: the arm that has been played in the last round
@@ -211,5 +211,5 @@ class GPTSEstimator(BaseGPEstimator):
         thetas = self.rng.normal(self.mu_vector, sigmas)
         return thetas
 
-    def update_model(self, played_arm: int, reward: int):
+    def update_model(self, played_arm: int, reward: int | float):
         super().update_model(played_arm, reward)
