@@ -46,6 +46,8 @@ class BeUCB1Estimator:
         else:
             thetas[zero_mask] = float('+inf')
             thetas[non_zero_mask] = thetas[non_zero_mask] + np.sqrt((2*np.log(t))/self.play_counts)
+            # We truncate to 1 in case of Hoeffding bound going over 1
+            thetas[thetas > 1] = 1
         return thetas
 
     def update_estimations(self, played_arm: int, positive_rewards: int, total_rewards: int):
