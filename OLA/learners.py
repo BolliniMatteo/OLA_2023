@@ -377,7 +377,7 @@ class Step4TSContextGenLearner(MultiClassLearner):
 
     def play_round(self):
         played_rounds = self.history.played_rounds()
-        if self.history.played_rounds() > self.burn_in and played_rounds % 7 == 0:
+        if played_rounds > self.burn_in and played_rounds % 7 == 6:
             data = self.history.get_raw_data()
             n_classes, self.class_map = self.context_gen.generate(data, list(range(self.env.n_features)))
             self.a_estimators = [est.BeTSEstimator(self.prices.shape[0], self.rng) for _ in range(n_classes)]

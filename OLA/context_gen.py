@@ -3,7 +3,7 @@ import sklearn
 
 import environments as envs
 from estimators import BaseGPEstimator
-from learners import multi_class_opt
+from learners import single_class_opt
 
 
 def split_data(data: dict, feature: int):
@@ -18,6 +18,13 @@ def split_data(data: dict, feature: int):
     data_f1["profiles"] = data["profiles"] - data_f0["profiles"]
 
     return data_f0, data_f1
+
+
+def get_n_users(data: dict):
+    n = 0
+    for profile in data["profiles"]:
+        n += np.sum(data["clicks"][profile])
+    return n
 
 
 class ContextGeneration:
@@ -59,14 +66,15 @@ class ContextGeneration:
         clicks_lower_bounds = self.ucb_like_bound(clicks_gp.mu_vector, clicks_gp.sigma_vector)
         costs_upper_bounds = self.ucb_like_bound(costs_gp.mu_vector, costs_gp.sigma_vector, True)
 
-        bid, price = multi_class_opt(self.bids, self.prices, alphas_lower_bounds, clicks_lower_bounds,
-                                     costs_upper_bounds)
+        bid, price = single_class_opt(self.bids, self.prices, alphas_lower_bounds, clicks_lower_bounds,
+                                      costs_upper_bounds)
         return price * alphas_lower_bounds[price] * clicks_lower_bounds[bid] - costs_upper_bounds[bid]
 
     def evaluate_feature(self, data: dict, feature: int):
         data_f0, data_f1 = split_data(data, feature)
-        p_f0 = self.bound(len(data_f0) / len(data), len(data))
-        p_f1 = self.bound(len(data_f1) / len(data), len(data))
+        tot_users = get_n_users(data)
+        p_f0 = self.bound(get_n_users(data_f0) / tot_users, tot_users)
+        p_f1 = self.bound(get_n_users(data_f1) / tot_users, tot_users)
         return p_f0 * self.evaluate_data(data_f0) + p_f1 * self.evaluate_data(data_f1)
 
     def decide_split(self, data: dict, features: list):
@@ -103,10 +111,10 @@ class ContextGeneration:
             else:
                 contexts.append(list(data_right["profiles"]))
         else:
-            contexts.append(list(self.env.user_profiles))
+            contexts.append(list(data["profiles"]))
 
         mapping = {}
-        for profile in self.env.user_profiles:
+        for profile in data["profiles"]:
             context_idx = list(map(lambda c: profile in c, contexts)).index(True)
             mapping[profile] = context_idx
 
