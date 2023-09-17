@@ -344,5 +344,13 @@ class MultiClassEnvironmentHistory:
         cumulative_regrets = np.sum(cumulative_regrets, axis=0)
         return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
 
-
-
+    def get_raw_data(self):
+        # TODO: we should create a class that only contains the historic data and that is wrapped by the history classes
+        return {
+            "profiles": set(self.env.user_profiles),
+            "bids": self.xs,
+            "prices": self.ps,
+            "clicks": self.ns,
+            "conversions": self.qs,
+            "costs": self.cs
+        }

@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 import environments as envs
 import estimators as est
+from context_gen import ContextGeneration
 from environments import SingleClassEnvironmentHistory
 from environments import MultiClassEnvironmentHistory
 
@@ -344,14 +345,68 @@ class Step4TSClassesKnownLearner(MultiClassLearner):
         self.c_estimators = [est.GPTSEstimator(bids, kernel, alpha, rng) for _ in range(self.env.classes_count())]
 
     def play_round(self):
-        alphas_est = np.array([self.a_estimators[c].provide_estimations() for c in range(self.env.classes_count())])
-        n_est = np.array([self.n_estimators[c].provide_estimations() for c in range(self.env.classes_count())])
-        c_est = np.array([self.c_estimators[c].provide_estimations() for c in range(self.env.classes_count())])
+        alphas_est = np.array([self.a_estimators[cl].provide_estimations() for cl in range(self.env.classes_count())])
+        n_est = np.array([self.n_estimators[cl].provide_estimations() for cl in range(self.env.classes_count())])
+        c_est = np.array([self.c_estimators[cl].provide_estimations() for cl in range(self.env.classes_count())])
         xs_t, xs_t_ind, ps_t, ps_t_ind = multi_class_opt(self.ps, self.xs, alphas_est, n_est, c_est)
         results = self.play_and_save(self.env.class_map, xs_t, ps_t)
         results = self.step_results_to_estimated_classes(results, self.env.class_map)
-        for c in range(len(results)):
-            n, q, c = results[c]
-            self.a_estimators[c].update_estimations(ps_t_ind[c], q, n)
-            self.n_estimators[c].update_model(xs_t[c], n)
-            self.c_estimators[c].update_model(xs_t[c], c)
+        for cl in range(len(results)):
+            n, q, c = results[cl]
+            self.a_estimators[cl].update_estimations(ps_t_ind[cl], q, n)
+            self.n_estimators[cl].update_model(xs_t[cl], n)
+            self.c_estimators[cl].update_model(xs_t[cl], c)
+
+
+class Step4TSContextGenLearner(MultiClassLearner):
+    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
+                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, rng: np.random.Generator,
+                 context_gen: ContextGeneration, burn_in: int):
+        super().__init__(environment, bids, prices)
+        self.bids = bids
+        self.prices = prices
+        self.kernel = kernel
+        self.alpha = alpha
+        self.rng = rng
+        self.context_gen = context_gen
+        self.burn_in = burn_in
+        self.class_map = {p: 0 for p in self.env.user_profiles}
+        self.a_estimators = [est.BeTSEstimator(prices.shape[0], rng)]
+        self.n_estimators = [est.GPTSEstimator(bids, kernel, alpha, rng)]
+        self.c_estimators = [est.GPTSEstimator(bids, kernel, alpha, rng)]
+
+    def play_round(self):
+        played_rounds = self.history.played_rounds()
+        if self.history.played_rounds() > self.burn_in and played_rounds % 7 == 0:
+            data = self.history.get_raw_data()
+            n_classes, self.class_map = self.context_gen.generate(data, list(range(self.env.n_features)))
+            self.a_estimators = [est.BeTSEstimator(self.prices.shape[0], self.rng) for _ in range(n_classes)]
+            self.n_estimators = [est.GPTSEstimator(self.bids, self.kernel, self.alpha, self.rng)
+                                 for _ in range(n_classes)]
+            self.c_estimators = [est.GPTSEstimator(self.bids, self.kernel, self.alpha, self.rng)
+                                 for _ in range(n_classes)]
+            for t in range(played_rounds):
+                for profile in data["profiles"]:
+                    self.a_estimators[self.class_map[profile]].update_estimations(
+                        list(self.prices).index(data["prices"][profile][t]),
+                        data["conversions"][profile][t], data["clicks"][profile][t]
+                    )
+                    self.n_estimators[self.class_map[profile]].update_model(
+                        data["bids"][profile][t], data["clicks"][profile][t]
+                    )
+                    self.c_estimators[self.class_map[profile]].update_model(
+                        data["bids"][profile][t], data["costs"][profile][t]
+                    )
+
+        n_classes = len(set(self.class_map.values()))
+        alphas_est = np.array([self.a_estimators[cl].provide_estimations() for cl in range(n_classes)])
+        n_est = np.array([self.n_estimators[cl].provide_estimations() for cl in range(n_classes)])
+        c_est = np.array([self.c_estimators[cl].provide_estimations() for cl in range(n_classes)])
+        xs_t, xs_t_ind, ps_t, ps_t_ind = multi_class_opt(self.ps, self.xs, alphas_est, n_est, c_est)
+        results = self.play_and_save(self.class_map, xs_t, ps_t)
+        results = self.step_results_to_estimated_classes(results, self.class_map)
+        for cl in range(len(results)):
+            n, q, c = results[cl]
+            self.a_estimators[cl].update_estimations(ps_t_ind[cl], q, n)
+            self.n_estimators[cl].update_model(xs_t[cl], n)
+            self.c_estimators[cl].update_model(xs_t[cl], c)
