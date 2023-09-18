@@ -1,3 +1,6 @@
+import inline as inline
+import matplotlib
+
 from environments import SingleClassEnvironment
 from environments import SingleClassEnvironmentHistory
 from environments import MultiClassEnvironment
@@ -7,6 +10,8 @@ from base_learners import MultiClassLearner
 
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+from config.plot_styling import *
 from typing import Callable
 
 

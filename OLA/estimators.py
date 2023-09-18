@@ -142,7 +142,7 @@ class BaseGPEstimator:
                                                             return_std=True)
 
 
-class GPUCB1Estimator(BaseGPEstimator):
+class GPUCBEstimator(BaseGPEstimator):
     """
     An object that performs GP-UCB1 on Bernoulli-like arms
     It simply provides the estimations and updates them
