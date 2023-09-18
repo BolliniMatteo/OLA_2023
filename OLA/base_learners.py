@@ -92,8 +92,8 @@ class Step2UCBLearner(SingleClassLearner):
     def __init__(self, environment: envs.SingleClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                  kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float):
         super().__init__(environment, bids, prices)
-        self.n_estimator = est.GPUCB1Estimator(bids, kernel, alpha, beta)
-        self.c_estimator = est.GPUCB1Estimator(bids, kernel, alpha, beta)
+        self.n_estimator = est.GPUCBEstimator(bids, kernel, alpha, beta)
+        self.c_estimator = est.GPUCBEstimator(bids, kernel, alpha, beta)
         self.alphas = np.array([self.env.A[p] for p in prices])
         # in theory, I could compute here the best price
         # and then optimize just the bid,
@@ -137,8 +137,8 @@ class Step3UCBLearner(SingleClassLearner):
                  kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float):
         super().__init__(environment, bids, prices)
         self.a_estimator = est.BeUCB1Estimator(prices.shape[0])
-        self.n_estimator = est.GPUCB1Estimator(bids, kernel, alpha, beta)
-        self.c_estimator = est.GPUCB1Estimator(bids, kernel, alpha, beta)
+        self.n_estimator = est.GPUCBEstimator(bids, kernel, alpha, beta)
+        self.c_estimator = est.GPUCBEstimator(bids, kernel, alpha, beta)
 
     def play_round(self):
         if self.history.played_rounds() < self.ps.shape[0]:
