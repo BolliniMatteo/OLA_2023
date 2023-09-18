@@ -1,49 +1,46 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from environments import SingleClassEnvironment
+import environment_properties as ep
 
 """
 Just scripts to find some "good" functions for the environments
 """
 
-def old_N(x):
-    return np.sqrt((x ** 12) * 400)
+rng = np.random.default_rng(seed=3000)
 
-def N(x):
-    return np.sqrt((x ** 14) * 300)
+x = ep.get_bids()
+p = ep.get_prices()
+N = ep.daily_clicks_curve
+C = ep.click_cumulative_cost
+a = ep.click_conversion_rate
 
+n_values = N(x)
+c_values = C(x)
+a_values = a(p)
 
-def older_C(x):
-    return 1/(0.01*(N(2.0)-N(x)+0.0001))*N(x)*0.7
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(15, 15))
 
+axes = axes.flatten()
 
-def old_C(x):
-    return 1/(0.007*(N(2.0)-N(x)))*N(x)*0.7
+axes[0].scatter(x, N(x), label='number clicks', s=0.5)
+axes[0].plot(x, np.zeros(x.shape), label='Zero')
 
+axes[1].scatter(x, C(x), label='payment', s=0.5)
+axes[1].scatter(x, N(x)*x, label='max payment', s=0.5)
+axes[1].plot(x, np.zeros(x.shape), label='Zero')
 
-def C(x):
-    return np.sqrt((x ** 16) * 200)
+axes[2].scatter(p, a(p), label='conversion rate', s=5)
+axes[2].plot(p, np.zeros(p.shape), label='Zero')
 
+axes[3].scatter(x, N(x)+ep.click_curve_noise(rng, x.shape[0]), label='noisy number clicks', s=0.5)
+axes[3].plot(x, np.zeros(x.shape), label='Zero')
 
-def create_single_class_environment(rng):
-    # rng = np.random.default_rng(seed)
-    return SingleClassEnvironment(N, lambda: rng.normal(0, 10, 1), C, ec, A, rng)
+axes[4].scatter(x, C(x)+ep.click_cumulative_cost_noise(rng,x.shape[0]), label='noisy payment', s=0.5)
+axes[4].scatter(x, (N(x)+ep.click_curve_noise(rng, x.shape[0]))*x, label='noisy max payment', s=0.5)
+axes[4].plot(x, np.zeros(x.shape), label='Zero')
 
+for i in range(len(axes)):
+    axes[i].legend()
 
-
-n_bids = 100
-max_bid = 2.0
-
-x = np.linspace(0.01, max_bid, n_bids)
-
-plt.plot(x, N(x), label='number clicks')
-plt.plot(x, C(x), label='payment')
-plt.plot(x, N(x)*x, label='max payment')
-plt.plot(x, 2.5*0.7*N(x)-C(x), label='reward')
-plt.legend()
 plt.show()
-
-print(np.max(2.5*0.7*N(x)-C(x)))
-
-# N ha un'immagine troppo vasta: se teniamo questo serve una noise con varianza dipendente dal valore di N
-# OH, remember that N is an int, while C is a float!

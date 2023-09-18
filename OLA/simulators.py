@@ -47,7 +47,7 @@ def simulate_single_class(env_init: Callable[[], SingleClassEnvironment],
         env = env_init()
         learner = learner_init(env)
         for j in range(t):
-            print('Iteration %d of experiment %d' % (j, i))
+            # print('Iteration %d of experiment %d' % (j, i))
             learner.play_round()
         rewards, regrets, c_rewards, c_regrets = learner.history.reward_stats()
         inst_rewards.append(rewards)
@@ -82,18 +82,21 @@ def plot_single_class_sim_result(result: SingleClassSimResult):
     axes[0].set_title('Instantaneous rewards')
     axes[0].plot(time_steps, result.inst_rewards_mean, label='mean')
     axes[0].plot(time_steps, result.inst_rewards_std, label='std')
+    axes[0].legend()
 
     axes[1].set_title('Instantaneous regrets')
     axes[1].plot(time_steps, result.inst_regrets_mean, label='mean')
     axes[1].plot(time_steps, result.inst_regrets_std, label='std')
+    axes[1].legend()
 
     axes[2].set_title('Cumulative reward')
     axes[2].plot(time_steps, result.cum_rewards_mean, label='mean')
     axes[2].plot(time_steps, result.cum_rewards_std, label='std')
+    axes[2].legend()
 
     axes[3].set_title('Cumulative regret')
     axes[3].plot(time_steps, result.cum_regrets_mean, label='mean')
     axes[3].plot(time_steps, result.cum_regrets_std, label='std')
+    axes[3].legend()
 
-    plt.legend()
     plt.show()

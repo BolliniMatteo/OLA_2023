@@ -48,10 +48,6 @@ class SingleClassEnvironment:
         c: float - the advertising costs
         """
         n = int(self.N(x) + self.en())
-        print(x)
-        print(n)
-        print(p)
-        print(self.A[int(p)])
         samples = self.rng.binomial(n=1, p=self.A[int(p)], size=n)
         q = np.sum(samples)
         c = self.C(x) + self.ec()
@@ -143,7 +139,7 @@ class SingleClassEnvironmentHistory:
         """
         ps = np.array(self.ps)
         xs = np.array(self.xs)
-        return self.compute_reward_stats(ps, xs, self.A, self.N, self.C, self.x_best, self.p_best)
+        return self.compute_reward_stats(xs, ps, self.A, self.N, self.C, self.x_best, self.p_best)
 
     @staticmethod
     def compute_reward_stats(xs: np.ndarray, ps: np.ndarray,
