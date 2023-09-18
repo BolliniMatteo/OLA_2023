@@ -119,3 +119,12 @@ class ContextGeneration:
             mapping[profile] = context_idx
 
         return len(contexts), mapping
+
+
+class DummyContextGeneration(ContextGeneration):
+    def __init__(self, class_map: dict):
+        self.class_map = class_map
+        self.n_classes = len(set(self.class_map.values()))
+
+    def generate(self, data: dict, features: list):
+        return self.n_classes, self.class_map
