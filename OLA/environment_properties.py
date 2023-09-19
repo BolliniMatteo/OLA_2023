@@ -20,7 +20,20 @@ def daily_clicks_curve(bid: Union[float, np.ndarray]):
     """
     Expected number of clicks given a bid
     """
-    return np.floor(-20*(bid**2) + 251*bid - 181)
+    return np.floor(-20 * (bid ** 2) + 251 * bid - 181)
+
+
+def daily_clicks_curve_abrupt(bid: Union[float, np.ndarray], phase: int):
+    """
+    Expected number of clicks given a bid
+    """
+    match phase:
+        case 1:
+            return np.floor(-20 * (bid ** 2) + 251 * bid - 181)
+        case 2:
+            return np.floor(-20 * ((bid - 1.5) ** 2) + 251 * (bid - 1.5) - 181)
+        case 3:
+            return np.floor(-20 * ((bid - 3) ** 2) + 251 * (bid - 3) - 181)
 
 
 def click_curve_noise(rng: np.random.Generator, size):
@@ -36,7 +49,7 @@ def click_cumulative_cost(bid: Union[float, np.ndarray]):
     """
     # return -bid * (bid - 14) * 50
     # return -50*bid**2 + 700*bid
-    return -68*(bid**2) + 968*bid - 850
+    return -68 * (bid ** 2) + 968 * bid - 850
 
 
 def click_cumulative_cost_noise(rng: np.random.Generator, size):
@@ -53,7 +66,7 @@ def click_conversion_rate(price: Union[float, np.ndarray]):
     """
 
     # return (-3 * ((price - 6) ** 2) + 30) / 35
-    return -5.4167e-06*(price**2) + 0.00467*price - 0.3125
+    return -5.4167e-06 * (price ** 2) + 0.00467 * price - 0.3125
 
 
 def daily_clicks_curve_multiclass(bid: float, customer_class: int):
@@ -68,9 +81,6 @@ def daily_clicks_curve_multiclass(bid: float, customer_class: int):
             return np.floor(-(bid - 4) * (bid - 8) * 6)
     return 0
     """
-
-
-
 
 
 def click_conversion_rate_multiclass(price: float, customer_class: int):
