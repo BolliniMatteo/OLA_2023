@@ -53,14 +53,21 @@ class ContextGeneration:
         clicks_gp = BaseGPEstimator(self.bids, self.kernel, self.alpha)
         costs_gp = BaseGPEstimator(self.bids, self.kernel, self.alpha)
 
+        bids_data = []
+        clicks_data = []
+        costs_data = []
         for profile in data["profiles"]:
             for t, price in enumerate(data["prices"][profile]):
                 convs[price] += data["conversions"][profile][t]
                 clicks[price] += data["clicks"][profile][t]
 
                 bid = data["bids"][profile][t]
-                clicks_gp.update_model(bid, data["clicks"][profile][t])
-                costs_gp.update_model(bid, data["costs"][profile][t])
+                bids_data.append(bid)
+                clicks_data.append(data["clicks"][profile][t])
+                costs_data.append(data["costs"][profile][t])
+
+        clicks_gp.update_model(bids_data, clicks_data)
+        costs_gp.update_model(bids_data, costs_data)
 
         alphas_lower_bounds = self.bound(convs / clicks, clicks)
         clicks_lower_bounds = self.ucb_like_bound(clicks_gp.mu_vector, clicks_gp.sigma_vector)

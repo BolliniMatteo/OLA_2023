@@ -284,18 +284,25 @@ class Step4TSContextGenLearner(MultiClassLearner):
                                  for _ in range(n_classes)]
             self.c_estimators = [est.GPTSEstimator(self.xs, self.kernel, self.alpha, self.rng)
                                  for _ in range(n_classes)]
+
+            # Data to update the GP estimators (each list contains one list per class/estimator)
+            clicks_data = [[] for _ in range(n_classes)]
+            bids_data = [[] for _ in range(n_classes)]
+            costs_data = [[] for _ in range(n_classes)]
             for t in range(played_rounds):
                 for profile in data["profiles"]:
-                    self.a_estimators[self.class_map[profile]].update_estimations(
+                    cl = self.class_map[profile]
+                    self.a_estimators[cl].update_estimations(
                         list(self.ps).index(data["prices"][profile][t]),
                         data["conversions"][profile][t], data["clicks"][profile][t]
                     )
-                    self.n_estimators[self.class_map[profile]].update_model(
-                        data["bids"][profile][t], data["clicks"][profile][t]
-                    )
-                    self.c_estimators[self.class_map[profile]].update_model(
-                        data["bids"][profile][t], data["costs"][profile][t]
-                    )
+                    clicks_data[cl].append(data["clicks"][profile][t])
+                    bids_data[cl] = data["bids"][profile][t]
+                    costs_data[cl] = data["costs"][profile][t]
+
+            for cl in range(n_classes):
+                self.n_estimators[cl].update_model(bids_data[cl], clicks_data[cl])
+                self.c_estimators[cl].update_model(bids_data[cl], costs_data[cl])
 
         n_classes = len(set(self.class_map.values()))
         alphas_est = np.array([self.a_estimators[cl].provide_estimations() for cl in range(n_classes)])
@@ -353,18 +360,25 @@ class Step4UCBContextGenLearner(MultiClassLearner):
                                  for _ in range(n_classes)]
             self.c_estimators = [est.GPUCBEstimator(self.xs, self.kernel, self.alpha, self.beta)
                                  for _ in range(n_classes)]
+
+            # Data to update the GP estimators (each list contains one list per class/estimator)
+            clicks_data = [[] for _ in range(n_classes)]
+            bids_data = [[] for _ in range(n_classes)]
+            costs_data = [[] for _ in range(n_classes)]
             for t in range(played_rounds):
                 for profile in data["profiles"]:
-                    self.a_estimators[self.class_map[profile]].update_estimations(
+                    cl = self.class_map[profile]
+                    self.a_estimators[cl].update_estimations(
                         list(self.ps).index(data["prices"][profile][t]),
                         data["conversions"][profile][t], data["clicks"][profile][t]
                     )
-                    self.n_estimators[self.class_map[profile]].update_model(
-                        data["bids"][profile][t], data["clicks"][profile][t]
-                    )
-                    self.c_estimators[self.class_map[profile]].update_model(
-                        data["bids"][profile][t], data["costs"][profile][t]
-                    )
+                    clicks_data[cl].append(data["clicks"][profile][t])
+                    bids_data[cl] = data["bids"][profile][t]
+                    costs_data[cl] = data["costs"][profile][t]
+
+            for cl in range(n_classes):
+                self.n_estimators[cl].update_model(bids_data[cl], clicks_data[cl])
+                self.c_estimators[cl].update_model(bids_data[cl], costs_data[cl])
 
         n_classes = len(set(self.class_map.values()))
 

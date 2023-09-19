@@ -124,22 +124,28 @@ class BaseGPEstimator:
         # We choose a standard deviation of 3 (???)
         self.sigma_vector = np.ones(self.arms.shape[0]) * 3
 
-    def update_model(self, played_arm: int, reward: float):
-        """
-        Updates the internal attributes for the estimations
-        :param played_arm: the arm that has been played in the last round
-        :param reward: the reward obtained in the last round
-        :return: None
-        """
-        self.played_arms.append(played_arm)
-        self.rewards.append(reward)
-
+    def _update_gp(self):
         x = np.array(self.played_arms)
         X = np.reshape(x, (x.shape[0], 1))
         y = np.array(self.rewards)
         self.gp.fit(X, y)
         self.mu_vector, self.sigma_vector = self.gp.predict(np.atleast_2d(self.arms).T,
                                                             return_std=True)
+
+    def update_model(self, played_arms: int | list, rewards: float | list):
+        """
+        Updates the internal attributes for the estimations
+        :param played_arms: the arm(s) that have been played
+        :param rewards: the reward(s) obtained in the corresponding round(s)
+        :return: None
+        """
+        if isinstance(played_arms, list):
+            self.played_arms += list(played_arms)
+            self.rewards += list(rewards)
+        else:
+            self.played_arms.append(played_arms)
+            self.rewards.append(rewards)
+        self._update_gp()
 
 
 class GPUCBEstimator(BaseGPEstimator):
@@ -210,6 +216,3 @@ class GPTSEstimator(BaseGPEstimator):
         sigmas = np.maximum(self.sigma_vector, 1e-2)
         thetas = self.rng.normal(self.mu_vector, sigmas)
         return thetas
-
-    def update_model(self, played_arm: int, reward: float):
-        super().update_model(played_arm, reward)
