@@ -10,9 +10,9 @@ from OLA.simulators import plot_single_class_sim_result
 
 def env_init_step1(prices: np.ndarray, rng: np.random.Generator):
     N = ep.daily_clicks_curve
-    en = lambda: ep.click_curve_noise(rng, 1)
+    en = lambda: ep.click_curve_noise(rng, None) # size None returns a scalar, size 1 an array of a single element
     C = ep.click_cumulative_cost
-    ec = lambda: ep.click_cumulative_cost_noise(rng, 1)
+    ec = lambda: ep.click_cumulative_cost_noise(rng, None)
     A = {p: ep.click_conversion_rate(p) for p in prices}
 
     return SingleClassEnvironment(N, en, C, ec, A, rng)

@@ -1,6 +1,7 @@
 import numpy as np
 import sklearn
 from sklearn.gaussian_process import GaussianProcessRegressor
+from typing import Union
 
 """
 I try to keep things modular
@@ -132,7 +133,7 @@ class BaseGPEstimator:
         self.mu_vector, self.sigma_vector = self.gp.predict(np.atleast_2d(self.arms).T,
                                                             return_std=True)
 
-    def update_model(self, played_arms: int | list, rewards: float | list):
+    def update_model(self, played_arms: Union[int, list], rewards: Union[float, list]):
         """
         Updates the internal attributes for the estimations
         :param played_arms: the arm(s) that have been played

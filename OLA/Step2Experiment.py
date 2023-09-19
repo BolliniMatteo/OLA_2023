@@ -13,9 +13,9 @@ from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 
 def env_init_step2(prices: np.ndarray, rng: np.random.Generator):
     N = ep.daily_clicks_curve
-    en = lambda: ep.click_curve_noise(rng, 1)
+    en = lambda: ep.click_curve_noise(rng, None)
     C = ep.click_cumulative_cost
-    ec = lambda: ep.click_cumulative_cost_noise(rng, 1)
+    ec = lambda: ep.click_cumulative_cost_noise(rng, None)
     A = {p: ep.click_conversion_rate(p) for p in prices}
 
     return SingleClassEnvironment(N, en, C, ec, A, rng)
@@ -38,7 +38,8 @@ if __name__ == '__main__':
     rng = np.random.default_rng(seed=seed)
     env_init = lambda: env_init_step2(prices, rng)
 
-    kernel = ConstantKernel(1.0, (1e-3, 1e3)) * RBF(1.0, (1e-3, 1e3))
+    # kernel = ConstantKernel(1.0, (1e-3, 1e3)) * RBF(1.0, (1e-3, 1e3))
+    kernel = ConstantKernel(1.0, (1e-20, 1e20)) * RBF(1.0, (1e-20, 1e20))
     alpha = 10
     # beta should be around 110
     beta = 110
@@ -48,6 +49,6 @@ if __name__ == '__main__':
 
     T = 365
     #sim_object_gpucb = simulate_single_class(env_init, learner_init_gpucb, T, n_runs=20)
-    sim_object_ts = simulate_single_class(env_init, learner_init_gpts, T, n_runs=20)
+    sim_object_ts = simulate_single_class(env_init, learner_init_gpts, T, n_runs=200)
     #plot_single_class_sim_result(sim_object_gpucb)
     plot_single_class_sim_result(sim_object_ts)

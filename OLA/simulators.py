@@ -1,4 +1,4 @@
-import inline as inline
+# import inline as inline
 import matplotlib
 
 from environments import SingleClassEnvironment

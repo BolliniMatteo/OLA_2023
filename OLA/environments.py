@@ -48,9 +48,15 @@ class SingleClassEnvironment:
         c: float - the advertising costs
         """
         n = int(self.N(x) + self.en())
+        # potentially there is a small probability that the noise sets the number of clicks to less than 1 (or even
+        # less than 0)
+        if n < 1:
+            n = 1
         samples = self.rng.binomial(n=1, p=self.A[int(p)], size=n)
         q = np.sum(samples)
         c = self.C(x) + self.ec()
+        if c < 0.1:
+            c = 0.1
         return n, q, c
 
 
@@ -221,10 +227,16 @@ class MultiClassEnvironment:
             user_prob = self.user_prob_map[user_prof]
             n = (self.n[user_class](bid) + self.en()) * user_prob
             n = int(n)
+            # there is the possibility that the noise reduces n below 1
+            if n < 1:
+                n = 1
             # I am pretty sure that Binomial exists in the standard generator that we use
             samples = self.rng.binomial(n=1, p=self.a[user_class][price], size=n)
             q = np.sum(samples)
             c = (self.c[user_class](bid) + self.ec()) * user_prob
+            # again due to the noise, we want to avoid negative values
+            if c < 0.1:
+                c = 0.1
             result[user_prof] = (n, q, c)
         return result
 
