@@ -25,6 +25,10 @@ user_prob_map = {
 }
 
 
+def _gaussian(x, a, b, c):
+    return a * np.exp(-(x - b)**2 / c**2)
+
+
 def get_bids():
     return np.linspace(1, 10, num=100)
 
@@ -118,11 +122,11 @@ def click_conversion_rate_multiclass(price: float, customer_class: int):
     """
     match customer_class:
         case 0:
-            return (-(price - 2) ** 2 + price) / 3
+            return -5.4167e-06 * (price ** 2) + 0.00467 * price - 0.3125
         case 1:
-            return (-(price - 2) * (price - 6)) / 4
+            return -3.5e-6 * (price ** 2) + 0.001424 * price + 0.7576
         case 2:
-            return (-(price - 4) * (price - 8)) / 5
+            return _gaussian(price, 0.8, 600, 400)
     return 0
 
 

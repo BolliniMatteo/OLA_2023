@@ -333,8 +333,8 @@ class Step4TSContextGenLearner(MultiClassLearner):
                         data["conversions"][profile][t], data["clicks"][profile][t]
                     )
                     clicks_data[cl].append(data["clicks"][profile][t])
-                    bids_data[cl] = data["bids"][profile][t]
-                    costs_data[cl] = data["costs"][profile][t]
+                    bids_data[cl].append(data["bids"][profile][t])
+                    costs_data[cl].append(data["costs"][profile][t])
 
             for cl in range(n_classes):
                 self.n_estimators[cl].update_model(bids_data[cl], clicks_data[cl])
@@ -409,8 +409,8 @@ class Step4UCBContextGenLearner(MultiClassLearner):
                         data["conversions"][profile][t], data["clicks"][profile][t]
                     )
                     clicks_data[cl].append(data["clicks"][profile][t])
-                    bids_data[cl] = data["bids"][profile][t]
-                    costs_data[cl] = data["costs"][profile][t]
+                    bids_data[cl].append(data["bids"][profile][t])
+                    costs_data[cl].append(data["costs"][profile][t])
 
             for cl in range(n_classes):
                 self.n_estimators[cl].update_model(bids_data[cl], clicks_data[cl])

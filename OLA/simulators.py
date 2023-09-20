@@ -105,20 +105,20 @@ def simulate_multi_class(env_init: Callable[[], MultiClassEnvironment],
     aggr_cum_rewards = np.zeros((n_runs, t))
     aggr_cum_regrets = np.zeros((n_runs, t))
 
-    for i in tqdm(range(n_runs)):
+    for i in range(n_runs):
         env = env_init()
         learner = learner_init(env)
 
-        for _ in range(t):
+        for _ in tqdm(range(t), desc=f"Run #{n_runs}"):
             learner.play_round()
 
-        rewards, regrets, c_rewards, c_regrets = learner.history.stats_for_class()
+        rewards, regrets, c_rewards, c_regrets = learner.history.stats_for_class(learner.xs, learner.ps)
         inst_rewards[:, i] = rewards
         inst_regrets[:, i] = regrets
         cum_rewards[:, i] = c_rewards
         cum_regrets[:, i] = c_regrets
 
-        aggr_rewards, aggr_regrets, aggr_c_rewards, aggr_c_regrets = learner.history.stats_total()
+        aggr_rewards, aggr_regrets, aggr_c_rewards, aggr_c_regrets = learner.history.stats_total(learner.xs, learner.ps)
         aggr_inst_rewards[i] = aggr_rewards
         aggr_inst_regrets[i] = aggr_regrets
         aggr_cum_rewards[i] = aggr_c_rewards

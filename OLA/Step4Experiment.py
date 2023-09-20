@@ -1,5 +1,6 @@
 import numpy as np
 import sklearn.gaussian_process.kernels
+import warnings
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 
 import environment_properties as ep
@@ -8,6 +9,9 @@ from OLA.base_learners import Step4TSContextGenLearner, Step4TSOneClassLearner, 
 from OLA.context_gen import ContextGeneration
 from OLA.environments import MultiClassEnvironment
 from OLA.simulators import simulate_multi_class, plot_multi_class_sim_result
+
+
+warnings.filterwarnings("ignore")
 
 
 def env_init_step4(rng: np.random.Generator):
@@ -80,8 +84,8 @@ def main():
                                                                                    rng, context_gen, burn_in)
     learner_init_gpts_one = lambda env: gpts_one_learner_init(env, bids, prices, kernel, alpha, rng, burn_in)
 
-    T = 365
-    n_runs = 20
+    T = 10  # TODO: should be 365
+    n_runs = 10
 
     res_gpucb_known = simulate_multi_class(env_init, learner_init_gpucb_known, T, n_runs)
     # res_gpucb_unknown = simulate_multi_class(env_init, learner_init_gpucb_unknown, T, n_runs)
