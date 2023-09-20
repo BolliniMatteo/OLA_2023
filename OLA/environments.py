@@ -171,7 +171,7 @@ class SingleClassEnvironmentHistory:
         cumulative_regrets : numpy array
             the cumulative regrets
         """
-        x_best, _, p_best, _ = opt.single_class_opt(bids, prices, self.A(prices), self.N(prices), self.C(prices))
+        x_best, _, p_best, _ = opt.single_class_opt(bids, prices, self.A(prices), self.N(bids), self.C(bids))
         ps = np.array(self.ps)
         xs = np.array(self.xs)
         return self.compute_reward_stats(xs, ps, self.A, self.N, self.C, x_best, p_best)
@@ -205,6 +205,57 @@ class SingleClassEnvironmentHistory:
 
     def played_rounds(self):
         return len(self.ps)
+
+
+class SingleClassEnvironmentNonStationaryHistory:
+
+    def __init__(self, env: SingleClassEnvironmentNonStationary):
+        self.env = env
+        self.xs = []
+        self.ps = []
+        self.ns = []
+        self.qs = []
+        self.cs = []
+
+    def add_step(self, x: float, p: float, n: int, q: int, c: float):
+        """
+        Memorizes a new step (i.e., day)
+        :param x: the chosen bid
+        :param p: the chosen price
+        :param n: the achieved number of clicks
+        :param q: the achieved number of conversions
+        :param c: the achieved advertising cost
+        :return: None
+        """
+        self.xs.append(x)
+        self.ps.append(p)
+        self.ns.append(n)
+        self.qs.append(q)
+        self.cs.append(c)
+
+    def reward_stats(self, bids: np.ndarray, prices: np.ndarray):
+        """
+
+        :param bids:
+        :param prices:
+        :return: (instantaneous rewards, instantaneous regrets, cumulative rewards, cumulative regrets)
+        """
+        ps = np.array(self.ps)
+        xs = np.array(self.xs)
+        rs = np.zeros(ps.shape[0])
+        best_rs = np.zeros(ps.shape[0])
+        # compute the optimal reward at each time step
+        for t in ps.shape[0]:
+            alphas = np.array([self.env.A(p, t) for p in prices])
+            x_best, _, p_best, _ = opt.single_class_opt(bids, prices, alphas, self.env.N(bids), self.env.C(bids))
+
+            best_rs[t] = self.env.A(p_best,t) * p_best * self.env.N(x_best) - self.env.C(x_best)
+            rs = self.env.A(ps[t], t) * ps[t] * self.env.N(xs[t]) - self.env.C(xs[t])
+
+        instantaneous_regrets = best_rs - rs
+
+        return rs, instantaneous_regrets, np.cumsum(rs), np.cumsum(
+            instantaneous_regrets)
 
 
 class MultiClassEnvironment:
