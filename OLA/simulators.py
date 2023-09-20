@@ -1,5 +1,6 @@
 # import inline as inline
 import matplotlib
+from tqdm import tqdm
 
 from environments import SingleClassEnvironment
 from environments import SingleClassEnvironmentHistory
@@ -21,13 +22,19 @@ class SingleClassSimResult:
                  cum_rewards_mean, cum_rewards_std,
                  cum_regrets_mean, cum_regrets_std):
         self.cum_rewards_mean = cum_rewards_mean
-        self.cum_regrets_mean = cum_regrets_mean
         self.cum_rewards_std = cum_rewards_std
+        self.cum_regrets_mean = cum_regrets_mean
         self.cum_regrets_std = cum_regrets_std
         self.inst_regrets_mean = inst_regrets_mean
         self.inst_regrets_std = inst_regrets_std
-        self.inst_rewards_std = inst_rewards_std
         self.inst_rewards_mean = inst_rewards_mean
+        self.inst_rewards_std = inst_rewards_std
+
+
+class MultiClassSimResult:
+    def __init__(self, per_class_results: list[SingleClassSimResult], aggregate_results: SingleClassSimResult):
+        self.per_class_results = per_class_results
+        self.aggregate_results = aggregate_results
 
 
 def simulate_single_class(env_init: Callable[[], SingleClassEnvironment],
@@ -83,9 +90,64 @@ def simulate_single_class(env_init: Callable[[], SingleClassEnvironment],
                                 cum_regrets_mean, cum_regrets_std)
 
 
-def plot_single_class_sim_result(result: SingleClassSimResult):
-    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(50, 100))
-    axes = axes.flatten()
+def simulate_multi_class(env_init: Callable[[], MultiClassEnvironment],
+                         learner_init: Callable[[MultiClassEnvironment], MultiClassLearner],
+                         t: int, n_runs=300):
+    n_classes = env_init().classes_count()
+
+    inst_rewards = np.zeros((n_classes, n_runs, t))
+    inst_regrets = np.zeros((n_classes, n_runs, t))
+    cum_rewards = np.zeros((n_classes, n_runs, t))
+    cum_regrets = np.zeros((n_classes, n_runs, t))
+
+    aggr_inst_rewards = np.zeros((n_runs, t))
+    aggr_inst_regrets = np.zeros((n_runs, t))
+    aggr_cum_rewards = np.zeros((n_runs, t))
+    aggr_cum_regrets = np.zeros((n_runs, t))
+
+    for i in tqdm(range(n_runs)):
+        env = env_init()
+        learner = learner_init(env)
+
+        for _ in range(t):
+            learner.play_round()
+
+        rewards, regrets, c_rewards, c_regrets = learner.history.stats_for_class()
+        inst_rewards[:, i] = rewards
+        inst_regrets[:, i] = regrets
+        cum_rewards[:, i] = c_rewards
+        cum_regrets[:, i] = c_regrets
+
+        aggr_rewards, aggr_regrets, aggr_c_rewards, aggr_c_regrets = learner.history.stats_total()
+        aggr_inst_rewards[i] = aggr_rewards
+        aggr_inst_regrets[i] = aggr_regrets
+        aggr_cum_rewards[i] = aggr_c_rewards
+        aggr_cum_regrets[i] = aggr_c_regrets
+
+        return MultiClassSimResult([
+            SingleClassSimResult(
+                np.mean(inst_rewards[cl], axis=0),
+                np.std(inst_rewards[cl], axis=0),
+                np.mean(inst_regrets[cl], axis=0),
+                np.std(inst_regrets[cl], axis=0),
+                np.mean(cum_rewards[cl], axis=0),
+                np.std(cum_rewards[cl], axis=0),
+                np.mean(cum_regrets[cl], axis=0),
+                np.std(cum_regrets[cl], axis=0)
+            ) for cl in range(n_classes)
+        ], SingleClassSimResult(
+            np.mean(aggr_inst_rewards, axis=0),
+            np.std(aggr_inst_rewards, axis=0),
+            np.mean(aggr_inst_regrets, axis=0),
+            np.std(aggr_inst_regrets, axis=0),
+            np.mean(aggr_cum_rewards, axis=0),
+            np.std(aggr_cum_rewards, axis=0),
+            np.mean(aggr_cum_regrets, axis=0),
+            np.std(aggr_cum_regrets, axis=0)
+        ))
+
+
+def _plot_single_class_sim_result(result: SingleClassSimResult, fig, axes):
     time_steps = [i for i in range(1, result.inst_regrets_mean.shape[0]+1)]
     axes[0].set_title('Instantaneous rewards')
     axes[0].plot(time_steps, result.inst_rewards_mean, label='mean')
@@ -108,3 +170,15 @@ def plot_single_class_sim_result(result: SingleClassSimResult):
     axes[3].legend()
 
     plt.show()
+
+
+def plot_single_class_sim_result(result: SingleClassSimResult):
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(50, 100))
+    axes = axes.flatten()
+    _plot_single_class_sim_result(result, fig, axes)
+
+
+def plot_multi_class_sim_result(result: MultiClassSimResult):
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(50, 100))
+    axes = axes.flatten()
+    _plot_single_class_sim_result(result.aggregate_results, fig, axes)
