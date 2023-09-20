@@ -28,15 +28,7 @@ class SingleClassLearner(ABC):
         self.env = environment
         self.ps = prices
         self.xs = bids
-        self._prepare_history()
-
-    # history uses the clairvoyant algorithm to compute the regret
-    def _prepare_history(self):
-        alphas_est = self.env.A(self.ps)
-        n_est = self.env.N(self.xs)
-        c_est = self.env.C(self.xs)
-        x_best, _, p_best, _ = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
-        self.history = SingleClassEnvironmentHistory(self.env.N, self.env.C, self.env.A, x_best, p_best)
+        self.history = SingleClassEnvironmentHistory(self.env)
 
     def play_and_save(self, bid, price):
         n, q, c = self.env.perform_day(bid, price)
@@ -63,7 +55,8 @@ class SingleClassLearnerNonStationary(ABC):
         n_est = self.env.N(self.xs)
         c_est = self.env.C(self.xs)
         x_best, _, p_best, _ = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
-        self.history = SingleClassEnvironmentHistory(self.env.N, self.env.C, self.env.A, x_best, p_best)
+        # TODO: use a subclass of SingleClassEnvironmentHistory with a different method to compute the reward stats
+        # self.history = SingleClassEnvironmentHistory(self.env.N, self.env.C, self.env.A, x_best, p_best)
 
     def play_and_save(self, bid, price, day):
         n, q, c = self.env.perform_day(bid, price, day)
@@ -240,15 +233,7 @@ class MultiClassLearner(ABC):
         self.env = environment
         self.ps = prices
         self.xs = bids
-        self._prepare_history()
-
-    # history uses the clairvoyant algorithm to compute the regret
-    def _prepare_history(self):
-        alphas = np.array([self.env.a[c](self.ps) for c in range(self.env.classes_count())])
-        ns = np.array([self.env.n[c](self.xs) for c in self.env.classes_count()])
-        cs = np.array([self.env.c[c](self.xs) for c in self.env.classes_count()])
-        xs_best, _, ps_best, _ = multi_class_opt(self.xs, self.ps, alphas, ns, cs)
-        self.history = MultiClassEnvironmentHistory(self.env, xs_best, ps_best)
+        self.history = MultiClassEnvironmentHistory(self.env)
 
     def play_and_save_raw(self, bids, prices):
         """

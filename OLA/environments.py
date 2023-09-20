@@ -1,6 +1,8 @@
 import numpy as np
 from typing import Callable,Union
 
+import optimization_utilities as opt
+
 """
 Here I define the environments 
 and the objects that keep track of the history and compute statistics
@@ -112,21 +114,13 @@ class SingleClassEnvironmentHistory:
     Observe that it is not stored inside the environment itself, but by the learner
     """
 
-    def __init__(self, N: Callable[[Union[float, np.ndarray]], Union[int, np.ndarray]],
-                 C: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]],
-                 A: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]], best_bid, best_price):
+    def __init__(self, env: SingleClassEnvironment):
         """
-        :param N: ...
-        :param C: ...
-        :param A: ...
-        :param best_bid: ...
-        :param best_price: ...
+        :param env: ...
         """
-        self.N = N
-        self.C = C
-        self.A = A
-        self.x_best = best_bid
-        self.p_best = best_price
+        self.N = env.N
+        self.C = env.C
+        self.A = env.A
 
         self.xs = []
         self.ps = []
@@ -162,13 +156,12 @@ class SingleClassEnvironmentHistory:
         self.qs.append(q)
         self.cs.append(c)
 
-    def reward_stats(self):
+    def reward_stats(self, bids: np.ndarray, prices: np.ndarray):
         """
-        These stats are computed with the expected rewards
-        (without noise)
-
-        Returns
-        -------
+        Computes some things regarding the reward/regret during the history
+        :param bids: the available bids
+        :param prices: the available prices
+        :return:
         instantaneous_rewards : numpy array
             the instantaneous rewards
         instantaneous_regrets : numpy array
@@ -177,11 +170,11 @@ class SingleClassEnvironmentHistory:
             the cumulative rewards
         cumulative_regrets : numpy array
             the cumulative regrets
-
         """
+        x_best, _, p_best, _ = opt.single_class_opt(bids, prices, self.A(prices), self.N(prices), self.C(prices))
         ps = np.array(self.ps)
         xs = np.array(self.xs)
-        return self.compute_reward_stats(xs, ps, self.A, self.N, self.C, self.x_best, self.p_best)
+        return self.compute_reward_stats(xs, ps, self.A, self.N, self.C, x_best, p_best)
 
     @staticmethod
     def compute_reward_stats(xs: np.ndarray, ps: np.ndarray,
@@ -279,15 +272,11 @@ class MultiClassEnvironment:
 
 
 class MultiClassEnvironmentHistory:
-    def __init__(self, environment: MultiClassEnvironment, best_bids: np.ndarray, best_prices: np.ndarray):
+    def __init__(self, environment: MultiClassEnvironment):
         """
         :param environment: the multi class environment of which the history will be recorded
-        :param best_bids: the best bid for each class
-        :param best_prices: the best price for each class
         """
         self.env = environment
-        self.best_bids = best_bids
-        self.best_prices = best_prices
         # for each user profile, the bid for each turn
         self.xs = {}
         # for each user profile, the price for each turn
@@ -327,9 +316,10 @@ class MultiClassEnvironmentHistory:
     def played_rounds(self):
         return self.t
 
-    def stats_for_user_profile(self):
+    def stats_for_user_profile(self, bids: np.ndarray, prices: np.ndarray):
         """
-
+        :param bids: the available bids
+        :param prices: the available prices
         :return: (instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets)
         dictionaries, each one contains, for each user profile, an array with the data for each time step
         """
@@ -337,6 +327,12 @@ class MultiClassEnvironmentHistory:
         instantaneous_regrets = {}
         cumulative_rewards = {}
         cumulative_regrets = {}
+
+        alphas = np.array([self.env.a[c](prices) for c in range(self.env.classes_count())])
+        ns = np.array([self.env.n[c](bids) for c in range(self.env.classes_count())])
+        cs = np.array([self.env.c[c](bids) for c in range(self.env.classes_count())])
+        best_bids, _, best_prices, _ = opt.multi_class_opt(bids, prices, alphas, ns, cs)
+
         for user_profile in self.env.user_profiles:
             class_index = self.env.class_map[user_profile]
             res_tuple = SingleClassEnvironmentHistory.compute_reward_stats(np.array(self.xs[user_profile]),
@@ -344,8 +340,8 @@ class MultiClassEnvironmentHistory:
                                                                            self.env.a[class_index],
                                                                            self.env.n[class_index],
                                                                            self.env.c[class_index],
-                                                                           self.best_bids[class_index],
-                                                                           self.best_prices[class_index])
+                                                                           best_bids[class_index],
+                                                                           best_prices[class_index])
             rewards, regrets, cum_rewards, cum_regrets = res_tuple
             instantaneous_rewards[user_profile] = rewards
             instantaneous_regrets[user_profile] = regrets
@@ -353,9 +349,11 @@ class MultiClassEnvironmentHistory:
             cumulative_regrets[user_profile] = cumulative_regrets
         return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
 
-    def stats_for_class(self):
+    def stats_for_class(self, bids: np.ndarray, prices: np.ndarray):
         """
 
+        :param bids: the available bids
+        :param prices: the available prices
         :return: instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
         They are all matrices of shape (n_classes, T)
         matrix[c,t] = value at time t for class c
@@ -367,7 +365,7 @@ class MultiClassEnvironmentHistory:
         cumulative_regrets = np.zeros(shape=(max(self.env.class_map.values()), self.played_rounds()))
 
         # data for single user profiles
-        rewards, regrets, cum_rewards, cum_regrets = self.stats_for_user_profile()
+        rewards, regrets, cum_rewards, cum_regrets = self.stats_for_user_profile(bids, prices)
 
         # put things together according to the class
         for user_profile in self.env.user_profiles:
@@ -378,12 +376,15 @@ class MultiClassEnvironmentHistory:
             cumulative_regrets[c, :] = cumulative_regrets[c, :] + cum_regrets[user_profile]
         return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
 
-    def stats_total(self):
+    def stats_total(self, bids: np.ndarray, prices: np.ndarray):
         """
+
+        :param bids: the available bids
+        :param prices: the available prices
         :return: instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
         for each time step, the total (i.e. considering all the classes) values
         """
-        instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets = self.stats_for_class()
+        instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets = self.stats_for_class(bids, prices)
         instantaneous_rewards = np.sum(instantaneous_rewards, axis=0)
         instantaneous_regrets = np.sum(instantaneous_regrets, axis=0)
         cumulative_rewards = np.sum(cumulative_rewards, axis=0)
@@ -392,6 +393,9 @@ class MultiClassEnvironmentHistory:
 
     def get_raw_data(self):
         # TODO: we should create a class that only contains the historic data and that is wrapped by the history classes
+        # actually the class must go to the context generation class with its own constructor
+        # instead of this method
+        # observe that instead of dividing the dataset we memorize which user profiles to consider in the split
         return {
             "profiles": set(self.env.user_profiles),
             "bids": self.xs,

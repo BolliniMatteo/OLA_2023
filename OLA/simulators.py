@@ -31,14 +31,17 @@ class SingleClassSimResult:
 
 
 def simulate_single_class(env_init: Callable[[], SingleClassEnvironment],
-                          learner_init: Callable[[SingleClassEnvironment], SingleClassLearner],
+                          bids: np.ndarray, prices: np.ndarray,
+                          learner_init: Callable[[SingleClassEnvironment, np.ndarray, np.ndarray], SingleClassLearner],
                           t: int, n_runs=300):
     """
     Execute n_runs simulations of a single class agent
     and returns the mean and std dev of the reward stats.
     We don't have reset functions for the agents and the environments, so I ask for the initialization ones
     :param env_init: a function without parameters that creates a new environment
-    :param learner_init: a function that takes the environment and creates a new single class learner
+    :param bids: the available bids
+    :param prices: the available prices
+    :param learner_init: a function that takes the environment, the bids and the prices, and creates a new single class learner
     :param t: the time horizon for each episode
     :param n_runs: the number of simulations to perform
     :return:
@@ -50,11 +53,11 @@ def simulate_single_class(env_init: Callable[[], SingleClassEnvironment],
     for i in range(n_runs):
         print('Experiment %d' % i)
         env = env_init()
-        learner = learner_init(env)
+        learner = learner_init(env, bids, prices)
         for j in range(t):
             # print('Iteration %d of experiment %d' % (j, i))
             learner.play_round()
-        rewards, regrets, c_rewards, c_regrets = learner.history.reward_stats()
+        rewards, regrets, c_rewards, c_regrets = learner.history.reward_stats(bids, prices)
         inst_rewards.append(rewards)
         inst_regrets.append(regrets)
         cum_rewards.append(c_rewards)

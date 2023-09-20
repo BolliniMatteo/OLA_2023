@@ -32,10 +32,8 @@ if __name__ == '__main__':
     prices = ep.get_prices()
     rng = np.random.default_rng(seed=seed)
     env_init = lambda: env_init_step1(rng)
-    learner_init_ucb1 = lambda env: ucb1_learner_init(env, bids, prices)
-    learner_init_ts = lambda env: ts_learner_init(env, bids, prices, rng)
     T = 365
-    sim_object_ucb1 = simulate_single_class(env_init, learner_init_ucb1, T)
-    sim_object_ts = simulate_single_class(env_init, learner_init_ts, T)
+    sim_object_ucb1 = simulate_single_class(env_init, bids, prices, ucb1_learner_init, T)
+    sim_object_ts = simulate_single_class(env_init, bids, prices, ts_learner_init, T)
     plot_single_class_sim_result(sim_object_ucb1)
     plot_single_class_sim_result(sim_object_ts)

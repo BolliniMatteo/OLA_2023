@@ -64,6 +64,7 @@ def multi_class_bid_opt(bids: np.ndarray, prices: np.ndarray, alphas: np.ndarray
     :param estimated_costs: a matrix where row c contains the estimated advertising costs estimated for class c,
     shape=(n_classes,n_bids)
     :return: (bids, bids_ind)
+    both array with the optimal bids and bids indices (one element for class)
     """
     vs = prices * alphas
     objs = estimated_clicks * vs - estimated_costs

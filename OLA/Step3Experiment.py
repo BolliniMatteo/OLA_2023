@@ -42,11 +42,11 @@ if __name__ == '__main__':
     # beta should be around 110
     beta = 110
 
-    learner_init_gpucb = lambda env: gpucb_learner_init(env, bids, prices, kernel, alpha, beta)
-    learner_init_gpts = lambda env: gpts_learner_init(env, bids, prices, kernel, alpha, rng)
+    learner_init_gpucb = lambda env, bids, prices: gpucb_learner_init(env, bids, prices, kernel, alpha, beta)
+    learner_init_gpts = lambda env, bids, prices: gpts_learner_init(env, bids, prices, kernel, alpha, rng)
 
     T = 365
-    #sim_object_gpucb = simulate_single_class(env_init, learner_init_gpucb, T, n_runs=20)
-    sim_object_ts = simulate_single_class(env_init, learner_init_gpts, T, n_runs=20)
-    #plot_single_class_sim_result(sim_object_gpucb)
+    # sim_object_gpucb = simulate_single_class(env_init, learner_init_gpucb, T, n_runs=20)
+    sim_object_ts = simulate_single_class(env_init, bids, prices, learner_init_gpts, T, n_runs=20)
+    # plot_single_class_sim_result(sim_object_gpucb)
     plot_single_class_sim_result(sim_object_ts)
