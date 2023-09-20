@@ -7,6 +7,23 @@ Single class and multiclass environment functions
 Noises functions are to be wrapped in a lambda
 """
 
+n_features = 2
+n_classes = 3
+
+class_map = {
+    (0, 0): 0,
+    (0, 1): 0,
+    (1, 0): 1,
+    (1, 1): 2
+}
+
+user_prob_map = {
+    (0, 0): 0.3,
+    (0, 1): 0.7,
+    (1, 0): 1,
+    (1, 1): 1
+}
+
 
 def get_bids():
     return np.linspace(1, 10, num=100)
@@ -82,17 +99,15 @@ def click_conversion_rate_abrupt(price: Union[float, np.ndarray], day: int):
 
 
 def daily_clicks_curve_multiclass(bid: float, customer_class: int):
-    """
     match customer_class:
         # casual customer
-        case 1:
+        case 0:
             return np.floor((-(bid - 2) ** 2 + bid) * 6)
-        case 2:
+        case 1:
             return np.floor(-(bid - 2) * (bid - 6) * 8)
-        case 3:
+        case 2:
             return np.floor(-(bid - 4) * (bid - 8) * 6)
     return 0
-    """
 
 
 def click_conversion_rate_multiclass(price: float, customer_class: int):
@@ -101,26 +116,22 @@ def click_conversion_rate_multiclass(price: float, customer_class: int):
     only require 5 prices per curve, we can choose 5 equally separated prices
     in our curve for multiclass
     """
-    """
     match customer_class:
-        case 1:
+        case 0:
             return (-(price - 2) ** 2 + price) / 3
-        case 2:
+        case 1:
             return (-(price - 2) * (price - 6)) / 4
-        case 3:
+        case 2:
             return (-(price - 4) * (price - 8)) / 5
     return 0
-    """
 
 
 def click_cumulative_cost_multiclass(bid: float, customer_class: int):
-    """
     match customer_class:
-        case 1:
+        case 0:
             return -bid * (bid - 10) * 30
-        case 2:
+        case 1:
             return -bid * (bid - 12) * 100
-        case 3:
+        case 2:
             return -bid * (bid - 11) * 100
     return 0
-    """
