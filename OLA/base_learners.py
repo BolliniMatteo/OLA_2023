@@ -429,7 +429,7 @@ class Step4UCBContextGenLearner(MultiClassLearner):
 
         alphas = np.zeros(n_classes)
         ps_t = np.zeros(n_classes)
-        ps_t_ind = np.zeros(n_classes)
+        ps_t_ind = np.zeros(n_classes, dtype=int)
 
         for cl in range(n_classes):
             if all(played_price[cl]):
@@ -438,7 +438,7 @@ class Step4UCBContextGenLearner(MultiClassLearner):
                 alphas[cl] = alphas_est[ps_t_ind[cl]]
             else:
                 ps_t_ind[cl] = played_price[cl].index(False)
-                ps_t[cl] = played_price[cl][ps_t_ind[cl]]
+                ps_t[cl] = self.ps[ps_t_ind[cl]]
                 alphas[cl] = 0.5
 
         n_est = np.array([self.n_estimators[cl].provide_estimations() for cl in range(n_classes)])

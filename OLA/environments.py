@@ -308,7 +308,6 @@ class MultiClassEnvironment:
             # there is the possibility that the noise reduces n below 1
             if n < 1:
                 n = 1
-            # I am pretty sure that Binomial exists in the standard generator that we use
             samples = self.rng.binomial(n=1, p=self.a[user_class](price), size=n)
             q = np.sum(samples)
             c = (self.c[user_class](bid) + self.ec()) * user_prob

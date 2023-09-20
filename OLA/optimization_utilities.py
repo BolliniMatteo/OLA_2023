@@ -67,7 +67,7 @@ def multi_class_bid_opt(bids: np.ndarray, prices: np.ndarray, alphas: np.ndarray
     both array with the optimal bids and bids indices (one element for class)
     """
     vs = prices * alphas
-    objs = estimated_clicks * vs - estimated_costs
+    objs = estimated_clicks * vs.reshape((vs.shape[0], 1)).repeat(estimated_clicks.shape[1], axis=1) - estimated_costs
     best_bids_ind = np.argmax(objs, axis=0)
     best_bids = bids[best_bids_ind]
     return best_bids, best_bids_ind
