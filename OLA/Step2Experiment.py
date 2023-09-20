@@ -11,12 +11,12 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 
 
-def env_init_step2(prices: np.ndarray, rng: np.random.Generator):
+def env_init_step2(rng: np.random.Generator):
     N = ep.daily_clicks_curve
     en = lambda: ep.click_curve_noise(rng, None)
     C = ep.click_cumulative_cost
     ec = lambda: ep.click_cumulative_cost_noise(rng, None)
-    A = {p: ep.click_conversion_rate(p) for p in prices}
+    A = ep.click_conversion_rate
 
     return SingleClassEnvironment(N, en, C, ec, A, rng)
 
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     bids = ep.get_bids()
     prices = ep.get_prices()
     rng = np.random.default_rng(seed=seed)
-    env_init = lambda: env_init_step2(prices, rng)
+    env_init = lambda: env_init_step2(rng)
 
     # kernel = ConstantKernel(1.0, (1e-3, 1e3)) * RBF(1.0, (1e-3, 1e3))
     kernel = ConstantKernel(1.0, (1e-3, 1e3)) * RBF(1.0, (1e-3, 1e3))

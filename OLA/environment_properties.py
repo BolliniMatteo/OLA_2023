@@ -23,17 +23,16 @@ def daily_clicks_curve(bid: Union[float, np.ndarray]):
     return np.floor(-20 * (bid ** 2) + 251 * bid - 181)
 
 
-def daily_clicks_curve_abrupt(bid: Union[float, np.ndarray], phase: int):
+def daily_clicks_curve_abrupt(bid: Union[float, np.ndarray], day: int):
     """
     Expected number of clicks given a bid
     """
-    match phase:
-        case 1:
-            return np.floor(-20 * (bid ** 2) + 251 * bid - 181)
-        case 2:
-            return np.floor(-20 * ((bid - 1.5) ** 2) + 251 * (bid - 1.5) - 181)
-        case 3:
-            return np.floor(-20 * ((bid - 3) ** 2) + 251 * (bid - 3) - 181)
+    if day <= 120:
+        return np.floor(-20 * (bid ** 2) + 251 * bid - 181)
+    elif day <= 280:
+        return np.floor(-20 * ((bid - 1.5) ** 2) + 251 * (bid - 1.5) - 181)
+    else:
+        return np.floor(-20 * ((bid - 3) ** 2) + 251 * (bid - 3) - 181)
 
 
 def click_curve_noise(rng: np.random.Generator, size):
@@ -67,6 +66,19 @@ def click_conversion_rate(price: Union[float, np.ndarray]):
 
     # return (-3 * ((price - 6) ** 2) + 30) / 35
     return -5.4167e-06 * (price ** 2) + 0.00467 * price - 0.3125
+
+
+def click_conversion_rate_abrupt(price: Union[float, np.ndarray], day: int):
+    """
+    Conversion rate curve, since environment requires a dictionary, and we
+    only require 5 prices per curve, we can choose 5 equally separated prices
+    """
+    if day <= 120:
+        return -5.4167e-06 * ((price - 100) ** 2) + 0.00467 * (price - 100) - 0.3125
+    elif day <= 280:
+        return -5.4167e-06 * ((price - 200) ** 2) + 0.00467 * (price - 200) - 0.3125
+    else:
+        return -5.4167e-06 * (price ** 2) + 0.00467 * price - 0.3125
 
 
 def daily_clicks_curve_multiclass(bid: float, customer_class: int):

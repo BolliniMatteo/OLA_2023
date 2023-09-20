@@ -32,7 +32,7 @@ class SingleClassLearner(ABC):
 
     # history uses the clairvoyant algorithm to compute the regret
     def _prepare_history(self):
-        alphas_est = np.array([self.env.A[p] for p in self.ps])
+        alphas_est = self.env.A(self.ps)
         n_est = self.env.N(self.xs)
         c_est = self.env.C(self.xs)
         x_best, _, p_best, _ = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
@@ -40,6 +40,33 @@ class SingleClassLearner(ABC):
 
     def play_and_save(self, bid, price):
         n, q, c = self.env.perform_day(bid, price)
+        self.history.add_step(bid, price, n, q, c)
+        return n, q, c
+
+    @abstractmethod
+    def play_round(self):
+        pass
+
+
+class SingleClassLearnerNonStationary(ABC):
+    def __init__(self, environment: envs.SingleClassEnvironmentNonStationary, bids: np.ndarray, prices: np.ndarray):
+        self.env = environment
+        self.ps = prices
+        self.xs = bids
+        self._prepare_history()
+
+    # history uses the clairvoyant algorithm to compute the regret
+    def _prepare_history(self):
+        # TODO: this is wrong!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # the best action change at every phase -> you need a new history with an appropriate method to compute the regret
+        alphas_est = np.array([self.env.A[p] for p in self.ps])
+        n_est = self.env.N(self.xs)
+        c_est = self.env.C(self.xs)
+        x_best, _, p_best, _ = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+        self.history = SingleClassEnvironmentHistory(self.env.N, self.env.C, self.env.A, x_best, p_best)
+
+    def play_and_save(self, bid, price, day):
+        n, q, c = self.env.perform_day(bid, price, day)
         self.history.add_step(bid, price, n, q, c)
         return n, q, c
 
@@ -94,7 +121,7 @@ class Step2UCBLearner(SingleClassLearner):
         super().__init__(environment, bids, prices)
         self.n_estimator = est.GPUCBEstimator(bids, kernel, alpha, beta)
         self.c_estimator = est.GPUCBEstimator(bids, kernel, alpha, beta)
-        self.alphas = np.array([self.env.A[p] for p in prices])
+        self.alphas = self.env.A(self.ps)
         # in theory, I could compute here the best price
         # and then optimize just the bid,
         # but I will simply use the single_class_opt function
@@ -116,7 +143,7 @@ class Step2TSLearner(SingleClassLearner):
         super().__init__(environment, bids, prices)
         self.n_estimator = est.GPTSEstimator(bids, kernel, alpha, rng)
         self.c_estimator = est.GPTSEstimator(bids, kernel, alpha, rng)
-        self.alphas = np.array([self.env.A[p] for p in prices])
+        self.alphas = self.env.A(prices)
         # in theory, I could compute here the best price
         # and then optimize just the bid,
         # but I will simply use the single_class_opt function
@@ -184,6 +211,30 @@ class Step3TSLearner(SingleClassLearner):
         self.c_estimator.update_model(x_t, c)
 
 
+class Step5UCBLearner(SingleClassLearnerNonStationary, ABC):
+    def __init__(self, environment: envs.SingleClassEnvironmentNonStationary, bids: np.ndarray, prices: np.ndarray):
+        super().__init__(environment, bids, prices)
+        self.estimator = est.BeUCB1Estimator(self.ps.shape[0])
+
+    def play_round(self):
+        n_est = self.env.N(self.xs)
+        c_est = self.env.C(self.xs)
+        if self.history.played_rounds() < self.ps.shape[0]:
+            # we have not played each arm at least once
+            # we could also use the +inf given by the estimator and optimize as usual...
+            p_t = self.ps[self.history.played_rounds()]
+            p_t_ind = self.history.played_rounds()
+            # we have no data: we estimate 0.5 for the optimization
+            alpha = 0.5
+            x_t, x_t_ind = single_class_bid_opt(self.xs, p_t, alpha, n_est, c_est)
+        else:
+            alphas_est = self.estimator.provide_estimations(lower_bound=False)
+            x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+        n, q, c = self.play_and_save(x_t, p_t, self.history.played_rounds())
+        # ignore the warning, the argmax over the whole array is a single int and not an array
+        self.estimator.update_estimations(p_t_ind, q, n)
+
+
 class MultiClassLearner(ABC):
     def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray):
         self.env = environment
@@ -193,7 +244,7 @@ class MultiClassLearner(ABC):
 
     # history uses the clairvoyant algorithm to compute the regret
     def _prepare_history(self):
-        alphas = np.array([[self.env.a[c][p] for p in self.ps] for c in range(self.env.classes_count())])
+        alphas = np.array([self.env.a[c](self.ps) for c in range(self.env.classes_count())])
         ns = np.array([self.env.n[c](self.xs) for c in self.env.classes_count()])
         cs = np.array([self.env.c[c](self.xs) for c in self.env.classes_count()])
         xs_best, _, ps_best, _ = multi_class_opt(self.xs, self.ps, alphas, ns, cs)
@@ -431,4 +482,3 @@ class Step4UCBOneClassLearner(Step4UCBContextGenLearner):
         class_map = {p: 0 for p in self.env.user_profiles}
         super().__init__(environment, bids, prices, kernel, alpha, beta,
                          DummyContextGeneration(class_map), burn_in, class_map)
-

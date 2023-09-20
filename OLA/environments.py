@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Callable
+from typing import Callable,Union
 
 """
 Here I define the environments 
@@ -9,27 +9,19 @@ and the objects that keep track of the history and compute statistics
 
 class SingleClassEnvironment:
 
-    def __init__(self, N, en, C, ec, A, rng):
+    def __init__(self,
+                 N: Callable[[Union[float, np.ndarray]], Union[int, np.ndarray]], en: Callable[[], int],
+                 C: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]], ec: Callable[[], float],
+                 A: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]],
+                 rng: np.random.Generator):
         """
-        Parameters
-        ----------
-        N : callable
-            N:bid->E[number of clicks]
-        en : callable
-            en() returns a sample from a gaussian distribution
-        C : callable
-            C:bid->E[payment for clicks]
-        ec : callable
-            ec() returns a sample from a gaussian distribution
-        A : dictionary
-            A[p] = E[conversion rate at price p]
-        rng : random generator
-            a numpy random generator to be used (mostly for Bernoulli)
 
-        Returns
-        -------
-        None.
-
+        :param N: number of clicks given bid(s)
+        :param en: noise for the number of clicks
+        :param C: advertising cost given bids(s)
+        :param ec: noise for the advertising costs
+        :param A: conversion rate given price(s)
+        :param rng: a numpy random generator (used for the Bernoulli for the conversions)
         """
         self.N = N
         self.en = en
@@ -52,7 +44,61 @@ class SingleClassEnvironment:
         # less than 0)
         if n < 1:
             n = 1
-        samples = self.rng.binomial(n=1, p=self.A[int(p)], size=n)
+        samples = self.rng.binomial(n=1, p=self.A(p), size=n)
+        q = np.sum(samples)
+        c = self.C(x) + self.ec()
+        if c < 0.1:
+            c = 0.1
+        return n, q, c
+
+
+class SingleClassEnvironmentNonStationary:
+
+    def __init__(self, N, en, C, ec, A, rng):
+        """
+        Parameters
+        ----------
+        N :
+            N:bid->E[number of clicks]
+        en : callable
+            en() returns a sample from a gaussian distribution
+        C : callable
+            C:bid->E[payment for clicks]
+        ec : callable
+            ec() returns a sample from a gaussian distribution
+        A : callable
+            A(price, day) returns the conversion rate considering the day, and thus the phase
+        rng : random generator
+            a numpy random generator to be used (mostly for Bernoulli)
+
+        Returns
+        -------
+        None.
+
+        """
+        self.N = N
+        self.en = en
+        self.C = C
+        self.ec = ec
+        self.A = A
+        self.rng = rng
+
+    def perform_day(self, x: float, p: float, day: int):
+        """
+        :param x: the bid selected for the day
+        :param p: the price selected for the day
+        :param day: the current day
+        :return: (n,q,c)
+        n: int - the number of clicks
+        q: int - the number of conversions
+        c: float - the advertising costs
+        """
+        n = int(self.N(x) + self.en())
+        # potentially there is a small probability that the noise sets the number of clicks to less than 1 (or even
+        # less than 0)
+        if n < 1:
+            n = 1
+        samples = self.rng.binomial(n=1, p=self.A(p, day), size=n)
         q = np.sum(samples)
         c = self.C(x) + self.ec()
         if c < 0.1:
@@ -66,25 +112,15 @@ class SingleClassEnvironmentHistory:
     Observe that it is not stored inside the environment itself, but by the learner
     """
 
-    def __init__(self, N, C, A, best_bid, best_price):
+    def __init__(self, N: Callable[[Union[float, np.ndarray]], Union[int, np.ndarray]],
+                 C: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]],
+                 A: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]], best_bid, best_price):
         """
-        Parameters
-        ----------
-        N : callable
-            N:bid->E[number of clicks] must be applicable to arrays
-        C : callable
-            C:bid->E[payment for clicks] must be applicable to arrays
-        A : dictionary
-            A[p] = E[conversion rate at price p]
-        best_bid : float
-            the bid (among the available ones) that maximizes the reward
-        best_price : float
-            the price (among the available ones) that maximizes the reward
-
-        Returns
-        -------
-        None.
-
+        :param N: ...
+        :param C: ...
+        :param A: ...
+        :param best_bid: ...
+        :param best_price: ...
         """
         self.N = N
         self.C = C
@@ -149,7 +185,7 @@ class SingleClassEnvironmentHistory:
 
     @staticmethod
     def compute_reward_stats(xs: np.ndarray, ps: np.ndarray,
-                             A: dict, N: callable, C: callable,
+                             A: callable, N: callable, C: callable,
                              best_bid: float, best_price: float):
         """
         :return:
@@ -162,14 +198,12 @@ class SingleClassEnvironmentHistory:
         cumulative_regrets : np.ndarray
             the cumulative regrets for each time step
         """
-        # first get the conversions
-        # idea from https://stackoverflow.com/questions/16992713/translate-every-element-in-numpy-array-according-to-key
-        alphas = np.vectorize(A.get)(ps)
+        alphas = A(ps)
 
         # here maybe I should use the actual number of conversions and advertising costs with the noise?
         instantaneous_rewards = alphas * ps * N(xs) - C(xs)
 
-        best_reward = A[best_price] * best_price * N(best_bid) - C(best_bid)
+        best_reward = A(best_price) * best_price * N(best_bid) - C(best_bid)
 
         instantaneous_regrets = best_reward - instantaneous_rewards
 
@@ -196,7 +230,7 @@ class MultiClassEnvironment:
         :param en: the noise for the number of clicks
         :param c: a list of functions for the advertising costs
         :param ec: the noise for the advertising costs
-        :param a: a list of dictionaries for the conversion rates
+        :param a: a list of functions for the conversion rates
         :param rng: a numpy random number generator that will be used by this object
         """
         self.n_features = n_features
@@ -231,7 +265,7 @@ class MultiClassEnvironment:
             if n < 1:
                 n = 1
             # I am pretty sure that Binomial exists in the standard generator that we use
-            samples = self.rng.binomial(n=1, p=self.a[user_class][price], size=n)
+            samples = self.rng.binomial(n=1, p=self.a[user_class](price), size=n)
             q = np.sum(samples)
             c = (self.c[user_class](bid) + self.ec()) * user_prob
             # again due to the noise, we want to avoid negative values
