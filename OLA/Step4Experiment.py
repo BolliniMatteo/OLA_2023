@@ -11,6 +11,7 @@ from OLA.environments import MultiClassEnvironment
 from OLA.simulators import simulate_multi_class, plot_multi_class_sim_result
 
 
+# TODO: address the kernel warnings
 warnings.filterwarnings("ignore")
 
 
@@ -78,7 +79,7 @@ def main():
     learner_init_gpucb_unknown = lambda env, context_gen: gpucb_unknown_learner_init(env, bids, prices, kernel, alpha,
                                                                                      beta, context_gen, burn_in)
     learner_init_gpucb_one = lambda env: gpucb_one_learner_init(env, bids, prices, kernel, alpha, beta, burn_in)
-    
+
     learner_init_gpts_known = lambda env: gpts_known_learner_init(env, bids, prices, kernel, alpha, rng, burn_in)
     learner_init_gpts_unknown = lambda env, context_gen: gpts_unknown_learner_init(env, bids, prices, kernel, alpha,
                                                                                    rng, context_gen, burn_in)
@@ -87,12 +88,22 @@ def main():
     T = 10  # TODO: should be 365
     n_runs = 10
 
+    print("GP-UCB learner, known classes", flush=True)
     res_gpucb_known = simulate_multi_class(env_init, learner_init_gpucb_known, T, n_runs)
+
+    # print("GP-UCB learner, unknown classes with context generation", flush=True)
     # res_gpucb_unknown = simulate_multi_class(env_init, learner_init_gpucb_unknown, T, n_runs)
+
+    # print("GP-UCB learner, unknown classes using one context", flush=True)
     # res_gpucb_one = simulate_multi_class(env_init, learner_init_gpucb_one, T, n_runs)
 
+    print("GP-TS learner, known classes", flush=True)
     res_ts_known = simulate_multi_class(env_init, learner_init_gpts_known, T, n_runs)
+
+    # print("GP-TS learner, unknown classes with context generation", flush=True)
     # res_ts_unknown = simulate_multi_class(env_init, learner_init_gpts_unknown, T, n_runs)
+
+    # print("GP-TS learner, unknown classes using one context", flush=True)
     # res_ts_one = simulate_multi_class(env_init, learner_init_gpts_one, T, n_runs)
 
     plot_multi_class_sim_result(res_gpucb_known)

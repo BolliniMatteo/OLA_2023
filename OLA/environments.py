@@ -395,8 +395,8 @@ class MultiClassEnvironmentHistory:
             rewards, regrets, cum_rewards, cum_regrets = res_tuple
             instantaneous_rewards[user_profile] = rewards
             instantaneous_regrets[user_profile] = regrets
-            cumulative_rewards[user_profile] = cumulative_rewards
-            cumulative_regrets[user_profile] = cumulative_regrets
+            cumulative_rewards[user_profile] = cum_rewards
+            cumulative_regrets[user_profile] = cum_regrets
         return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
 
     def stats_for_class(self, bids: np.ndarray, prices: np.ndarray):
@@ -409,10 +409,10 @@ class MultiClassEnvironmentHistory:
         matrix[c,t] = value at time t for class c
         """
         # basically instantaneous_rewards[c,t]= reward at time t from users of class c
-        instantaneous_rewards = np.zeros(shape=(max(self.env.class_map.values()), self.played_rounds()))
-        instantaneous_regrets = np.zeros(shape=(max(self.env.class_map.values()), self.played_rounds()))
-        cumulative_rewards = np.zeros(shape=(max(self.env.class_map.values()), self.played_rounds()))
-        cumulative_regrets = np.zeros(shape=(max(self.env.class_map.values()), self.played_rounds()))
+        instantaneous_rewards = np.zeros(shape=(len(set(self.env.class_map.values())), self.played_rounds()))
+        instantaneous_regrets = np.zeros(shape=(len(set(self.env.class_map.values())), self.played_rounds()))
+        cumulative_rewards = np.zeros(shape=(len(set(self.env.class_map.values())), self.played_rounds()))
+        cumulative_regrets = np.zeros(shape=(len(set(self.env.class_map.values())), self.played_rounds()))
 
         # data for single user profiles
         rewards, regrets, cum_rewards, cum_regrets = self.stats_for_user_profile(bids, prices)

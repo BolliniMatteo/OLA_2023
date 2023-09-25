@@ -1,19 +1,14 @@
-# import inline as inline
-import matplotlib
+import sys
+from typing import Callable
+
+import matplotlib.pyplot as plt
+import numpy as np
 from tqdm import tqdm
 
-from environments import SingleClassEnvironment
-from environments import SingleClassEnvironmentHistory
-from environments import MultiClassEnvironment
-from environments import MultiClassEnvironmentHistory
 from base_learners import SingleClassLearner
 from base_learners import MultiClassLearner
-
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from config.plot_styling import *
-from typing import Callable
+from environments import SingleClassEnvironment
+from environments import MultiClassEnvironment
 
 
 class SingleClassSimResult:
@@ -109,7 +104,7 @@ def simulate_multi_class(env_init: Callable[[], MultiClassEnvironment],
         env = env_init()
         learner = learner_init(env)
 
-        for _ in tqdm(range(t), desc=f"Run #{n_runs}"):
+        for _ in tqdm(range(t), desc=f"Run #{i}", file=sys.stdout):
             learner.play_round()
 
         rewards, regrets, c_rewards, c_regrets = learner.history.stats_for_class(learner.xs, learner.ps)
@@ -124,27 +119,27 @@ def simulate_multi_class(env_init: Callable[[], MultiClassEnvironment],
         aggr_cum_rewards[i] = aggr_c_rewards
         aggr_cum_regrets[i] = aggr_c_regrets
 
-        return MultiClassSimResult([
-            SingleClassSimResult(
-                np.mean(inst_rewards[cl], axis=0),
-                np.std(inst_rewards[cl], axis=0),
-                np.mean(inst_regrets[cl], axis=0),
-                np.std(inst_regrets[cl], axis=0),
-                np.mean(cum_rewards[cl], axis=0),
-                np.std(cum_rewards[cl], axis=0),
-                np.mean(cum_regrets[cl], axis=0),
-                np.std(cum_regrets[cl], axis=0)
-            ) for cl in range(n_classes)
-        ], SingleClassSimResult(
-            np.mean(aggr_inst_rewards, axis=0),
-            np.std(aggr_inst_rewards, axis=0),
-            np.mean(aggr_inst_regrets, axis=0),
-            np.std(aggr_inst_regrets, axis=0),
-            np.mean(aggr_cum_rewards, axis=0),
-            np.std(aggr_cum_rewards, axis=0),
-            np.mean(aggr_cum_regrets, axis=0),
-            np.std(aggr_cum_regrets, axis=0)
-        ))
+    return MultiClassSimResult([
+        SingleClassSimResult(
+            np.mean(inst_rewards[cl], axis=0),
+            np.std(inst_rewards[cl], axis=0),
+            np.mean(inst_regrets[cl], axis=0),
+            np.std(inst_regrets[cl], axis=0),
+            np.mean(cum_rewards[cl], axis=0),
+            np.std(cum_rewards[cl], axis=0),
+            np.mean(cum_regrets[cl], axis=0),
+            np.std(cum_regrets[cl], axis=0)
+        ) for cl in range(n_classes)
+    ], SingleClassSimResult(
+        np.mean(aggr_inst_rewards, axis=0),
+        np.std(aggr_inst_rewards, axis=0),
+        np.mean(aggr_inst_regrets, axis=0),
+        np.std(aggr_inst_regrets, axis=0),
+        np.mean(aggr_cum_rewards, axis=0),
+        np.std(aggr_cum_rewards, axis=0),
+        np.mean(aggr_cum_regrets, axis=0),
+        np.std(aggr_cum_regrets, axis=0)
+    ))
 
 
 def _plot_single_class_sim_result(result: SingleClassSimResult, fig, axes):

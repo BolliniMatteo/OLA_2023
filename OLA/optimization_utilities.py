@@ -48,7 +48,7 @@ def multi_class_price_opt(prices: np.ndarray, estimated_alphas: np.ndarray):
     """
     # vs[class i] = estimated_alpha[class i] * prices
     vs = estimated_alphas * prices
-    best_ps_ind = np.argmax(vs, axis=0)
+    best_ps_ind = np.argmax(vs, axis=1)
     best_ps = prices[best_ps_ind]
     return best_ps, best_ps_ind
 
