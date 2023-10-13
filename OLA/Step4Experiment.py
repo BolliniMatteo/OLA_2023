@@ -85,8 +85,8 @@ def main():
                                                                                    rng, context_gen, burn_in)
     learner_init_gpts_one = lambda env: gpts_one_learner_init(env, bids, prices, kernel, alpha, rng, burn_in)
 
-    T = 10  # TODO: should be 365
-    n_runs = 10
+    T = 50  # TODO: should be 365
+    n_runs = 1
 
     print("GP-UCB learner, known classes", flush=True)
     res_gpucb_known = simulate_multi_class(env_init, learner_init_gpucb_known, T, n_runs)

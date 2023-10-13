@@ -174,6 +174,7 @@ def plot_single_class_sim_result(result: SingleClassSimResult):
 
 
 def plot_multi_class_sim_result(result: MultiClassSimResult):
+    # TODO: this at the moment only plots aggregate results
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(50, 100))
     axes = axes.flatten()
     _plot_single_class_sim_result(result.aggregate_results, fig, axes)
