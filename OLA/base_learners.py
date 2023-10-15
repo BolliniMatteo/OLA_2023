@@ -371,6 +371,11 @@ class Step4TSOneClassLearner(Step4TSContextGenLearner):
 
 
 class Step4UCBContextGenLearner(MultiClassLearner):
+    """
+    A multi-class learner that uses a context gen to determine the contex each week
+    after an initial "burn in" period.
+    UCB estimators are used.
+    """
     def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                  kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float,
                  context_gen: ContextGeneration, burn_in: int, initial_class_map: dict = None):
@@ -389,36 +394,12 @@ class Step4UCBContextGenLearner(MultiClassLearner):
     def play_round(self):
         played_rounds = self.history.played_rounds()
         if played_rounds > self.burn_in and played_rounds % 14 == 13:
-            data = self.history.get_raw_data()
-            n_classes, self.class_map = self.context_gen.generate(data, list(range(self.env.n_features)))
-            self.a_estimators = [est.BeUCB1Estimator(self.ps.shape[0]) for _ in range(n_classes)]
-            self.n_estimators = [est.GPUCBEstimator(self.xs, self.kernel, self.alpha, self.beta)
-                                 for _ in range(n_classes)]
-            self.c_estimators = [est.GPUCBEstimator(self.xs, self.kernel, self.alpha, self.beta)
-                                 for _ in range(n_classes)]
-
-            # Data to update the GP estimators (each list contains one list per class/estimator)
-            clicks_data = [[] for _ in range(n_classes)]
-            bids_data = [[] for _ in range(n_classes)]
-            costs_data = [[] for _ in range(n_classes)]
-            for t in range(played_rounds):
-                for profile in data["profiles"]:
-                    cl = self.class_map[profile]
-                    self.a_estimators[cl].update_estimations(
-                        list(self.ps).index(data["prices"][profile][t]),
-                        data["conversions"][profile][t], data["clicks"][profile][t]
-                    )
-                    clicks_data[cl].append(data["clicks"][profile][t])
-                    bids_data[cl].append(data["bids"][profile][t])
-                    costs_data[cl].append(data["costs"][profile][t])
-
-            for cl in range(n_classes):
-                self.n_estimators[cl].update_model(bids_data[cl], clicks_data[cl])
-                self.c_estimators[cl].update_model(bids_data[cl], costs_data[cl])
+            self._update_context()
 
         n_classes = len(set(self.class_map.values()))
 
         # Check that all prices have been played at least once (in each estimated class)
+        """
         played_price = [[False for _ in self.ps] for _ in range(n_classes)]
         for profile in self.env.user_profiles:
             for price_ind, price in enumerate(self.ps):
@@ -426,23 +407,26 @@ class Step4UCBContextGenLearner(MultiClassLearner):
                 if not played_price[self.class_map[profile]][price_ind]:
                     if price in self.history.ps[profile]:
                         played_price[self.class_map[profile]][price_ind] = True
+        """
 
         alphas = np.zeros(n_classes)
         ps_t = np.zeros(n_classes)
         ps_t_ind = np.zeros(n_classes, dtype=int)
 
         for cl in range(n_classes):
-            if all(played_price[cl]):
+            if self.a_estimators[cl].get_non_pulled_arms().shape[0] == 0:
                 alphas_est = self.a_estimators[cl].provide_estimations()
                 ps_t[cl], ps_t_ind[cl] = single_class_price_opt(self.ps, alphas_est)
                 alphas[cl] = alphas_est[ps_t_ind[cl]]
             else:
-                ps_t_ind[cl] = played_price[cl].index(False)
+                ps_t_ind[cl] = self.a_estimators[cl].get_non_pulled_arms()[0]
                 ps_t[cl] = self.ps[ps_t_ind[cl]]
                 alphas[cl] = 0.5
 
         n_est = np.array([self.n_estimators[cl].provide_estimations() for cl in range(n_classes)])
         c_est = np.array([self.c_estimators[cl].provide_estimations() for cl in range(n_classes)])
+        print("Debug ---- Step4UCBContextGenLearner ----")
+        print("self.xs:{}, ps_t={}, alphas={}, n_est={}, c_est={}".format(self.xs.shape, ps_t.shape, alphas.shape, n_est.shape, c_est.shape))
         xs_t, xs_t_ind = multi_class_bid_opt(self.xs, ps_t, alphas, n_est, c_est)
         results = self.play_and_save(self.class_map, xs_t, ps_t)
         results = self.step_results_to_estimated_classes(results, self.class_map)
@@ -452,8 +436,39 @@ class Step4UCBContextGenLearner(MultiClassLearner):
             self.n_estimators[cl].update_model(xs_t[cl], n)
             self.c_estimators[cl].update_model(xs_t[cl], c)
 
+    def _update_context(self):
+        data = self.history.get_raw_data()
+        n_classes, self.class_map = self.context_gen.generate(data, list(range(self.env.n_features)))
+        self.a_estimators = [est.BeUCB1Estimator(self.ps.shape[0]) for _ in range(n_classes)]
+        self.n_estimators = [est.GPUCBEstimator(self.xs, self.kernel, self.alpha, self.beta)
+                             for _ in range(n_classes)]
+        self.c_estimators = [est.GPUCBEstimator(self.xs, self.kernel, self.alpha, self.beta)
+                             for _ in range(n_classes)]
+
+        # Data to update the GP estimators (each list contains one list per class/estimator)
+        clicks_data = [[] for _ in range(n_classes)]
+        bids_data = [[] for _ in range(n_classes)]
+        costs_data = [[] for _ in range(n_classes)]
+        for t in range(played_rounds):
+            for profile in data["profiles"]:
+                cl = self.class_map[profile]
+                self.a_estimators[cl].update_estimations(
+                    list(self.ps).index(data["prices"][profile][t]),
+                    data["conversions"][profile][t], data["clicks"][profile][t]
+                )
+                clicks_data[cl].append(data["clicks"][profile][t])
+                bids_data[cl].append(data["bids"][profile][t])
+                costs_data[cl].append(data["costs"][profile][t])
+
+        for cl in range(n_classes):
+            self.n_estimators[cl].update_model(bids_data[cl], clicks_data[cl])
+            self.c_estimators[cl].update_model(bids_data[cl], costs_data[cl])
+
 
 class Step4UCBRealClassesLearner(Step4UCBContextGenLearner):
+    """
+    The UCB learner that knows the true classes in advance
+    """
     def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                  kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, burn_in: int):
         class_map = environment.class_map

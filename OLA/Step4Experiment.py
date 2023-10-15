@@ -73,7 +73,7 @@ def main():
     alpha = 10
     # beta should be around 110
     beta = 110
-    burn_in = 0
+    burn_in = 500
 
     learner_init_gpucb_known = lambda env: gpucb_known_learner_init(env, bids, prices, kernel, alpha, beta, burn_in)
     learner_init_gpucb_unknown = lambda env, context_gen: gpucb_unknown_learner_init(env, bids, prices, kernel, alpha,
