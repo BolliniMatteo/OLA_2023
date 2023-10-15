@@ -22,16 +22,13 @@ def ucb1_learner_init(env: SingleClassEnvironment, bids: np.ndarray, prices: np.
     return Step1UCBLearner(env, bids, prices)
 
 
-def ts_learner_init(env: SingleClassEnvironment, bids: np.ndarray, prices: np.ndarray, rng):
-    return Step1TSLearner(env, bids, prices, rng)
-
-
 if __name__ == '__main__':
     seed = 1000
     bids = ep.get_bids()
     prices = ep.get_prices()
     rng = np.random.default_rng(seed=seed)
     env_init = lambda: env_init_step1(rng)
+    ts_learner_init = lambda env, bids, prices: Step1TSLearner(env, bids, prices, rng)
     T = 365
     sim_object_ucb1 = simulate_single_class(env_init, bids, prices, ucb1_learner_init, T)
     sim_object_ts = simulate_single_class(env_init, bids, prices, ts_learner_init, T)

@@ -365,7 +365,7 @@ class Step4TSRealClassesLearner(Step4TSContextGenLearner):
 class Step4TSOneClassLearner(Step4TSContextGenLearner):
     def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                  kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, rng: np.random.Generator, burn_in: int):
-        class_map = {p: 0 for p in self.env.user_profiles}
+        class_map = {p: 0 for p in environment.user_profiles}
         super().__init__(environment, bids, prices, kernel, alpha, rng,
                          DummyContextGeneration(class_map), burn_in, class_map)
 
@@ -425,8 +425,6 @@ class Step4UCBContextGenLearner(MultiClassLearner):
 
         n_est = np.array([self.n_estimators[cl].provide_estimations() for cl in range(n_classes)])
         c_est = np.array([self.c_estimators[cl].provide_estimations() for cl in range(n_classes)])
-        print("Debug ---- Step4UCBContextGenLearner ----")
-        print("self.xs:{}, ps_t={}, alphas={}, n_est={}, c_est={}".format(self.xs.shape, ps_t.shape, alphas.shape, n_est.shape, c_est.shape))
         xs_t, xs_t_ind = multi_class_bid_opt(self.xs, ps_t, alphas, n_est, c_est)
         results = self.play_and_save(self.class_map, xs_t, ps_t)
         results = self.step_results_to_estimated_classes(results, self.class_map)
@@ -479,6 +477,6 @@ class Step4UCBRealClassesLearner(Step4UCBContextGenLearner):
 class Step4UCBOneClassLearner(Step4UCBContextGenLearner):
     def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                  kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, burn_in: int):
-        class_map = {p: 0 for p in self.env.user_profiles}
+        class_map = {p: 0 for p in environment.user_profiles}
         super().__init__(environment, bids, prices, kernel, alpha, beta,
                          DummyContextGeneration(class_map), burn_in, class_map)
