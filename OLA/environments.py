@@ -270,7 +270,7 @@ class MultiClassEnvironment:
         :param n_features: the number of features
         :param class_map: a mapping user_type->class (tuple->int), classes are from 0 to len(n)=len(c)=len(a)
         :param user_prob_map: a mapping user_type->probability
-        :param n: a list of functions for the number of clicks
+        :param n: a list of functions for the number of clicks (one for class)
         :param en: the noise for the number of clicks
         :param c: a list of functions for the advertising costs
         :param ec: the noise for the advertising costs
@@ -386,7 +386,7 @@ class MultiClassEnvironmentHistory:
         for user_profile in self.env.user_profiles:
             class_index = self.env.class_map[user_profile]
             res_tuple = SingleClassEnvironmentHistory.compute_reward_stats(np.array(self.xs[user_profile]),
-                                                                           np.array(self.xs[user_profile]),
+                                                                           np.array(self.ps[user_profile]),
                                                                            self.env.a[class_index],
                                                                            self.env.n[class_index],
                                                                            self.env.c[class_index],
@@ -401,7 +401,6 @@ class MultiClassEnvironmentHistory:
 
     def stats_for_class(self, bids: np.ndarray, prices: np.ndarray):
         """
-
         :param bids: the available bids
         :param prices: the available prices
         :return: instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
@@ -434,6 +433,7 @@ class MultiClassEnvironmentHistory:
         :return: instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
         for each time step, the total (i.e. considering all the classes) values
         """
+        # This implementation doesn't work as expected... maybe now it's fixed
         instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets = self.stats_for_class(bids, prices)
         instantaneous_rewards = np.sum(instantaneous_rewards, axis=0)
         instantaneous_regrets = np.sum(instantaneous_regrets, axis=0)

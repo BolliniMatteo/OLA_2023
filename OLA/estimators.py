@@ -61,6 +61,11 @@ class BeUCB1Estimator:
         self.play_counts[played_arm] = self.play_counts[played_arm] + total_rewards
         self.means[played_arm] = self.means[played_arm] / self.play_counts[played_arm]
 
+    def get_non_pulled_arms(self):
+        zero_mask = (self.play_counts == 0)
+        indices = np.arange(self.means.shape[0])
+        return indices[zero_mask]
+
 
 class BeTSEstimator:
     """
@@ -132,6 +137,10 @@ class BaseGPEstimator:
         self.gp.fit(X, y)
         self.mu_vector, self.sigma_vector = self.gp.predict(np.atleast_2d(self.arms).T,
                                                             return_std=True)
+        # depending on the np version, it may return a (100,1) or (100,) array
+        # we need the latter
+        self.mu_vector = np.reshape(self.mu_vector, self.arms.shape)
+        self.sigma_vector = np.reshape(self.sigma_vector, self.arms.shape)
 
     def update_model(self, played_arms: Union[int, list], rewards: Union[float, list]):
         """
