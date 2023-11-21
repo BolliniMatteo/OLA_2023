@@ -146,35 +146,42 @@ def _plot_single_class_sim_result(result: SingleClassSimResult, fig, axes):
     time_steps = [i for i in range(1, result.inst_regrets_mean.shape[0]+1)]
     axes[0].set_title('Instantaneous rewards')
     axes[0].plot(time_steps, result.inst_rewards_mean, label='mean')
-    axes[0].plot(time_steps, result.inst_rewards_mean + result.inst_rewards_std, label='std')
+    # axes[0].plot(time_steps, result.inst_rewards_mean + result.inst_rewards_std, label='std')
     axes[0].legend()
 
     axes[1].set_title('Instantaneous regrets')
     axes[1].plot(time_steps, result.inst_regrets_mean, label='mean')
-    axes[1].plot(time_steps, result.inst_regrets_mean + result.inst_regrets_std, label='std')
+    # axes[1].plot(time_steps, result.inst_regrets_mean + result.inst_regrets_std, label='std')
     axes[1].legend()
 
     axes[2].set_title('Cumulative reward')
     axes[2].plot(time_steps, result.cum_rewards_mean, label='mean')
-    axes[2].plot(time_steps, result.cum_rewards_mean + result.cum_rewards_std, label='std')
+    # axes[2].plot(time_steps, result.cum_rewards_mean + result.cum_rewards_std, label='std')
     axes[2].legend()
 
     axes[3].set_title('Cumulative regret')
     axes[3].plot(time_steps, result.cum_regrets_mean, label='mean')
-    axes[3].plot(time_steps, result.cum_regrets_mean + result.cum_regrets_std, label='std')
+    # axes[3].plot(time_steps, result.cum_regrets_mean + result.cum_regrets_std, label='std')
     axes[3].legend()
 
+
+
+def plot_single_class_sim_result(result: SingleClassSimResult, title: str = ""):
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
+    axes = axes.flatten()
+    fig.suptitle(title)
+    _plot_single_class_sim_result(result, fig, axes)
     plt.show()
 
 
-def plot_single_class_sim_result(result: SingleClassSimResult):
-    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(50, 100))
-    axes = axes.flatten()
-    _plot_single_class_sim_result(result, fig, axes)
-
-
-def plot_multi_class_sim_result(result: MultiClassSimResult):
+def plot_multi_class_sim_result(result: MultiClassSimResult, title: str = ""):
     # TODO: this at the moment only plots aggregate results
-    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(50, 100))
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
     axes = axes.flatten()
+    fig.suptitle(title)
     _plot_single_class_sim_result(result.aggregate_results, fig, axes)
+    # if title:
+    #     filename = f"{title}.png"
+    #     print(f"Saving {filename}")
+    #     plt.savefig(filename)
+    plt.show()
