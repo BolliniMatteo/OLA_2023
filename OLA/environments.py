@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Callable,Union
+from typing import Callable, Union
 
 import optimization_utilities as opt
 
@@ -56,7 +56,20 @@ class SingleClassEnvironment:
 
 class SingleClassEnvironmentNonStationary:
 
-    def __init__(self, N, en, C, ec, A, rng):
+    def __init__(self,
+                 N: Callable[[Union[float, np.ndarray]], Union[int, np.ndarray]], en: Callable[[], int],
+                 C: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]], ec: Callable[[], float],
+                 A: Callable[[Union[float, np.ndarray], int], Union[float, np.ndarray]],
+                 rng: np.random.Generator):
+        """
+        :param N: number of clicks given bid(s)
+        :param en: noise for the number of clicks
+        :param C: advertising cost given bids(s)
+        :param ec: noise for the advertising costs
+        :param A: conversion rate given price(s) and day.
+        The day is in [0,T-1]. The function works for a single day at a time
+        :param rng: a numpy random generator (used for the Bernoulli for the conversions)
+        """
         """
         Parameters
         ----------
@@ -84,12 +97,12 @@ class SingleClassEnvironmentNonStationary:
         self.ec = ec
         self.A = A
         self.rng = rng
+        self.t = 0
 
-    def perform_day(self, x: float, p: float, day: int):
+    def perform_day(self, x: float, p: float):
         """
         :param x: the bid selected for the day
         :param p: the price selected for the day
-        :param day: the current day
         :return: (n,q,c)
         n: int - the number of clicks
         q: int - the number of conversions
@@ -100,11 +113,12 @@ class SingleClassEnvironmentNonStationary:
         # less than 0)
         if n < 1:
             n = 1
-        samples = self.rng.binomial(n=1, p=self.A(p, day), size=n)
+        samples = self.rng.binomial(n=1, p=self.A(p, self.t), size=n)
         q = np.sum(samples)
         c = self.C(x) + self.ec()
         if c < 0.1:
             c = 0.1
+        self.t += 1
         return n, q, c
 
 
@@ -211,10 +225,15 @@ class SingleClassEnvironmentNonStationaryHistory:
 
     def __init__(self, env: SingleClassEnvironmentNonStationary):
         self.env = env
+        # played bids
         self.xs = []
+        # played prices
         self.ps = []
+        # achieved clicks
         self.ns = []
+        # achieved conversions
         self.qs = []
+        # incurred advertising costs
         self.cs = []
 
     def add_step(self, x: float, p: float, n: int, q: int, c: float):
@@ -236,8 +255,8 @@ class SingleClassEnvironmentNonStationaryHistory:
     def reward_stats(self, bids: np.ndarray, prices: np.ndarray):
         """
 
-        :param bids:
-        :param prices:
+        :param bids: the available bids to choose from
+        :param prices: the available prices to choose from
         :return: (instantaneous rewards, instantaneous regrets, cumulative rewards, cumulative regrets)
         """
         ps = np.array(self.ps)
@@ -245,17 +264,20 @@ class SingleClassEnvironmentNonStationaryHistory:
         rs = np.zeros(ps.shape[0])
         best_rs = np.zeros(ps.shape[0])
         # compute the optimal reward at each time step
-        for t in ps.shape[0]:
-            alphas = np.array([self.env.A(p, t) for p in prices])
+        for t in range(ps.shape[0]):
+            alphas = self.env.A(prices, t)
             x_best, _, p_best, _ = opt.single_class_opt(bids, prices, alphas, self.env.N(bids), self.env.C(bids))
 
-            best_rs[t] = self.env.A(p_best,t) * p_best * self.env.N(x_best) - self.env.C(x_best)
-            rs = self.env.A(ps[t], t) * ps[t] * self.env.N(xs[t]) - self.env.C(xs[t])
+            best_rs[t] = self.env.A(p_best, t) * p_best * self.env.N(x_best) - self.env.C(x_best)
+            rs[t] = self.env.A(ps[t], t) * ps[t] * self.env.N(xs[t]) - self.env.C(xs[t])
 
         instantaneous_regrets = best_rs - rs
 
         return rs, instantaneous_regrets, np.cumsum(rs), np.cumsum(
             instantaneous_regrets)
+
+    def played_rounds(self):
+        return len(self.ps)
 
 
 class MultiClassEnvironment:
@@ -434,6 +456,7 @@ class MultiClassEnvironmentHistory:
         for each time step, the total (i.e. considering all the classes) values
         """
         # This implementation doesn't work as expected... maybe now it's fixed
+        # TODO: So is it fixed or not?
         instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets = self.stats_for_class(bids, prices)
         instantaneous_rewards = np.sum(instantaneous_rewards, axis=0)
         instantaneous_regrets = np.sum(instantaneous_regrets, axis=0)

@@ -45,21 +45,10 @@ class SingleClassLearnerNonStationary(ABC):
         self.env = environment
         self.ps = prices
         self.xs = bids
-        self._prepare_history()
+        self.history = envs.SingleClassEnvironmentNonStationaryHistory(environment)
 
-    # history uses the clairvoyant algorithm to compute the regret
-    def _prepare_history(self):
-        # TODO: this is wrong!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        # the best action change at every phase -> you need a new history with an appropriate method to compute the regret
-        alphas_est = np.array([self.env.A[p] for p in self.ps])
-        n_est = self.env.N(self.xs)
-        c_est = self.env.C(self.xs)
-        x_best, _, p_best, _ = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
-        # TODO: use a subclass of SingleClassEnvironmentHistory with a different method to compute the reward stats
-        # self.history = SingleClassEnvironmentHistory(self.env.N, self.env.C, self.env.A, x_best, p_best)
-
-    def play_and_save(self, bid, price, day):
-        n, q, c = self.env.perform_day(bid, price, day)
+    def play_and_save(self, bid, price):
+        n, q, c = self.env.perform_day(bid, price)
         self.history.add_step(bid, price, n, q, c)
         return n, q, c
 
@@ -223,7 +212,7 @@ class Step5UCBLearner(SingleClassLearnerNonStationary, ABC):
         else:
             alphas_est = self.estimator.provide_estimations(lower_bound=False)
             x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
-        n, q, c = self.play_and_save(x_t, p_t, self.history.played_rounds())
+        n, q, c = self.play_and_save(x_t, p_t)
         # ignore the warning, the argmax over the whole array is a single int and not an array
         self.estimator.update_estimations(p_t_ind, q, n)
 

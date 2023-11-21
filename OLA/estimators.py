@@ -147,6 +147,7 @@ class BaseGPEstimator:
         Updates the internal attributes for the estimations
         :param played_arms: the arm(s) that have been played
         :param rewards: the reward(s) obtained in the corresponding round(s)
+        Reward here is the target to be estimated, not necessarily the complete reward that the agent gets
         :return: None
         """
         if isinstance(played_arms, list):
