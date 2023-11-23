@@ -62,6 +62,12 @@ class BeUCB1Estimator:
         self.means[played_arm] = self.means[played_arm] / self.play_counts[played_arm]
 
     def get_non_pulled_arms(self):
+        """
+        :return: an array with the indices of the arms that result non-pulled,
+        in the sense that the estimation for them have never been updated by update_estimation.
+        An array is returned even in case of a single non-pulled arm.
+        An empty array of shape (0,) is returned when there aren't any non-pulled arms
+        """
         zero_mask = (self.play_counts == 0)
         indices = np.arange(self.means.shape[0])
         return indices[zero_mask]

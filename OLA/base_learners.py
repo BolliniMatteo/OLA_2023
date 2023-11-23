@@ -193,7 +193,7 @@ class Step3TSLearner(SingleClassLearner):
         self.c_estimator.update_model(x_t, c)
 
 
-class Step5UCBLearner(SingleClassLearnerNonStationary, ABC):
+class Step5UCBLearner(SingleClassLearnerNonStationary):
     def __init__(self, environment: envs.SingleClassEnvironmentNonStationary, bids: np.ndarray, prices: np.ndarray):
         super().__init__(environment, bids, prices)
         self.estimator = est.BeUCB1Estimator(self.ps.shape[0])
@@ -215,6 +215,35 @@ class Step5UCBLearner(SingleClassLearnerNonStationary, ABC):
         n, q, c = self.play_and_save(x_t, p_t)
         # ignore the warning, the argmax over the whole array is a single int and not an array
         self.estimator.update_estimations(p_t_ind, q, n)
+
+
+class Step5UCBWINLearner(SingleClassLearnerNonStationary):
+    def __init__(self, environment: envs.SingleClassEnvironmentNonStationary,
+                 bids: np.ndarray, prices: np.ndarray,
+                 win_size: int):
+        super().__init__(environment, bids, prices)
+        self.win_size = win_size
+
+    def play_round(self):
+        n_est = self.env.N(self.xs)
+        c_est = self.env.C(self.xs)
+        t = self.history.played_rounds()
+        # first round is t=0
+        estimator = est.BeUCB1Estimator(self.ps.shape[0])
+        # remember that t is excluded in the range()
+        for i in range(max(0, t - self.win_size), t):
+            p_ind = np.where(self.ps == self.history.ps[i])[0][0]
+            estimator.update_estimations(p_ind, self.history.qs[i], self.history.ns[i])
+        non_pulled_arms = estimator.get_non_pulled_arms()
+        if non_pulled_arms.shape[0] != 0:
+            p_t_ind = non_pulled_arms[0]
+            p_t = self.ps[p_t_ind]
+            # we have no data: we estimate 0.5 for the optimization
+            x_t, _ = single_class_bid_opt(self.xs, p_t, 0.5, n_est, c_est)
+        else:
+            alphas_est = estimator.provide_estimations(lower_bound=False)
+            x_t, _, p_t, _ = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+        self.play_and_save(x_t, p_t)
 
 
 class MultiClassLearner(ABC):
@@ -365,6 +394,7 @@ class Step4UCBContextGenLearner(MultiClassLearner):
     after an initial "burn in" period.
     UCB estimators are used.
     """
+
     def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                  kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float,
                  context_gen: ContextGeneration, burn_in: int, initial_class_map: dict = None):
@@ -456,6 +486,7 @@ class Step4UCBRealClassesLearner(Step4UCBContextGenLearner):
     """
     The UCB learner that knows the true classes in advance
     """
+
     def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                  kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, burn_in: int):
         class_map = environment.class_map
