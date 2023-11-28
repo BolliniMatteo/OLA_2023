@@ -11,7 +11,7 @@ from environments import MultiClassEnvironmentHistory
 
 """
 The actual learners for the various step and the optimization functions that they use
-A learner has to:
+A learner usually has to:
 - instantiate the history object, computing the clairvoyant solution 
 - instantiate and use the estimators that it needs
 - at each round, get the estimations, optimize, play and update the estimators
@@ -71,6 +71,7 @@ class Step1UCBLearner(SingleClassLearner, ABC):
             p_t = self.ps[self.history.played_rounds()]
             p_t_ind = self.history.played_rounds()
             # we have no data: we estimate 0.5 for the optimization
+            # confirmed by experiments: lower alpha gives more regret, larger alpha gives more or less the same
             alpha = 0.5
             x_t, x_t_ind = single_class_bid_opt(self.xs, p_t, alpha, n_est, c_est, self.env.prod_cost)
         else:
@@ -238,8 +239,13 @@ class Step5UCBWINLearner(SingleClassLearnerNonStationary):
         if non_pulled_arms.shape[0] != 0:
             p_t_ind = non_pulled_arms[0]
             p_t = self.ps[p_t_ind]
-            # we have no data: we estimate 0.5 for the optimization
-            x_t, _ = single_class_bid_opt(self.xs, p_t, 0.5, n_est, c_est, self.env.prod_cost)
+            # we have no data in our window
+            # but if we don't find the arm in our window, then it wasn't a good arm in the last win_size days
+            # we can assume that it has a not so large alpha value whn choosing the bid
+            # this collects fewer samples for it, but avoid loosing much reward
+            # (with a large estimated alpha we tend to a larger bid, but we can get a negative reward
+            # if we have many clicks and relative cost to pay, but few conversions to profit)
+            x_t, _ = single_class_bid_opt(self.xs, p_t, 0.4, n_est, c_est, self.env.prod_cost)
         else:
             alphas_est = estimator.provide_estimations(lower_bound=False)
             x_t, _, p_t, _ = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
@@ -435,7 +441,7 @@ class Step4UCBContextGenLearner(MultiClassLearner):
         for cl in range(n_classes):
             if self.a_estimators[cl].get_non_pulled_arms().shape[0] == 0:
                 alphas_est = self.a_estimators[cl].provide_estimations()
-                ps_t[cl], ps_t_ind[cl] = single_class_price_opt(self.ps, alphas_est)
+                ps_t[cl], ps_t_ind[cl] = single_class_price_opt(self.ps, alphas_est, self.env.prod_cost)
                 alphas[cl] = alphas_est[ps_t_ind[cl]]
             else:
                 ps_t_ind[cl] = self.a_estimators[cl].get_non_pulled_arms()[0]

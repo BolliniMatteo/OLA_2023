@@ -1,14 +1,13 @@
 import sys
-from typing import Callable
+from typing import Callable, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
-from base_learners import SingleClassLearner
+from base_learners import SingleClassLearner, SingleClassLearnerNonStationary
 from base_learners import MultiClassLearner
-from environments import SingleClassEnvironment
-from environments import MultiClassEnvironment
+from environments import SingleClassEnvironment, MultiClassEnvironment, SingleClassEnvironmentNonStationary
 
 
 class SingleClassSimResult:
@@ -32,10 +31,14 @@ class MultiClassSimResult:
         self.aggregate_results = aggregate_results
 
 
-def simulate_single_class(env_init: Callable[[], SingleClassEnvironment],
+def simulate_single_class(env_init: Callable[[], Union[SingleClassEnvironment, SingleClassEnvironmentNonStationary]],
                           bids: np.ndarray, prices: np.ndarray,
-                          learner_init: Callable[[SingleClassEnvironment, np.ndarray, np.ndarray], SingleClassLearner],
-                          t: int, n_runs=300):
+                          learner_init: Union[
+                              Callable[[SingleClassEnvironment, np.ndarray, np.ndarray], SingleClassLearner],
+                              Callable[[SingleClassEnvironmentNonStationary, np.ndarray, np.ndarray], SingleClassLearnerNonStationary]
+                          ],
+                          t: int, n_runs=300,
+                          hook_function: Union[Callable[[SingleClassLearner], None], Callable[[SingleClassLearnerNonStationary], None]] = None):
     """
     Execute n_runs simulations of a single class agent
     and returns the mean and std dev of the reward stats.
@@ -46,6 +49,8 @@ def simulate_single_class(env_init: Callable[[], SingleClassEnvironment],
     :param learner_init: a function that takes the environment, the bids and the prices, and creates a new single class learner
     :param t: the time horizon for each episode
     :param n_runs: the number of simulations to perform
+    :param hook_function: a function that will be called at the end of each experiment,
+    useful to store any other data that you need to analyze regarding the agent performance
     :return:
     """
     inst_rewards = []
@@ -64,6 +69,8 @@ def simulate_single_class(env_init: Callable[[], SingleClassEnvironment],
         inst_regrets.append(regrets)
         cum_rewards.append(c_rewards)
         cum_regrets.append(c_regrets)
+        if hook_function is not None:
+            hook_function(learner)
     inst_rewards = np.array(inst_rewards)
     inst_regrets = np.array(inst_regrets)
     cum_rewards = np.array(cum_rewards)
