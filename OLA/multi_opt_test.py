@@ -19,12 +19,12 @@ print("Shapes: {}, {}, {}".format(n_values.shape, c_values.shape, a_values.shape
 best_bids, best_bids_ind, best_ps, best_ps_ind = op.multi_class_opt(x, p,
                                                                     a_values,
                                                                     n_values,
-                                                                    c_values)
+                                                                    c_values, 15)
 for c in range(3):
     best_bid, best_bid_ind, best_p, best_p_ind = op.single_class_opt(x, p,
                                                                      a_values[c, :],
                                                                      n_values[c, :],
-                                                                     c_values[c, :])
+                                                                     c_values[c, :], 15)
     print("-----Class {}-----".format(c))
     print("best_bid: {}=={}".format(best_bids[c], best_bid))
     print("best_bid_ind: {}=={}".format(best_bids_ind[c], best_bid_ind))

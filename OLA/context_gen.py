@@ -73,9 +73,10 @@ class ContextGeneration:
         clicks_lower_bounds = self.ucb_like_bound(clicks_gp.mu_vector, clicks_gp.sigma_vector)
         costs_upper_bounds = self.ucb_like_bound(costs_gp.mu_vector, costs_gp.sigma_vector, True)
 
+        # TODO: single_class_opt returns bid, bid_indx, price, price_index. Which one are you referring to?
         bid, price = single_class_opt(self.bids, self.prices, alphas_lower_bounds, clicks_lower_bounds,
-                                      costs_upper_bounds)
-        return price * alphas_lower_bounds[price] * clicks_lower_bounds[bid] - costs_upper_bounds[bid]
+                                      costs_upper_bounds, self.env.prod_cost)
+        return (price-self.env.prod_cost) * alphas_lower_bounds[price] * clicks_lower_bounds[bid] - costs_upper_bounds[bid]
 
     def evaluate_feature(self, data: dict, feature: int):
         data_f0, data_f1 = split_data(data, feature)
@@ -128,6 +129,8 @@ class ContextGeneration:
         return len(contexts), mapping
 
 
+# TODO: you probably want an abstract class ContextGen with an abstract generatr method,
+# and the two classes in this file become the two implementations
 class DummyContextGeneration(ContextGeneration):
     def __init__(self, class_map: dict):
         self.class_map = class_map

@@ -72,10 +72,10 @@ class Step1UCBLearner(SingleClassLearner, ABC):
             p_t_ind = self.history.played_rounds()
             # we have no data: we estimate 0.5 for the optimization
             alpha = 0.5
-            x_t, x_t_ind = single_class_bid_opt(self.xs, p_t, alpha, n_est, c_est)
+            x_t, x_t_ind = single_class_bid_opt(self.xs, p_t, alpha, n_est, c_est, self.env.prod_cost)
         else:
             alphas_est = self.estimator.provide_estimations(lower_bound=False)
-            x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+            x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
         n, q, c = self.play_and_save(x_t, p_t)
         # ignore the warning, the argmax over the whole array is a single int and not an array
         self.estimator.update_estimations(p_t_ind, q, n)
@@ -91,7 +91,7 @@ class Step1TSLearner(SingleClassLearner):
         alphas_est = self.estimator.provide_estimations()
         n_est = self.env.N(self.xs)
         c_est = self.env.C(self.xs)
-        x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+        x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
         n, q, c = self.play_and_save(x_t, p_t)
         # ignore the warning, the argmax over the whole array is a single int and not an array
         self.estimator.update_estimations(p_t_ind, q, n)
@@ -113,7 +113,7 @@ class Step2UCBLearner(SingleClassLearner):
         alphas_est = self.alphas
         n_est = self.n_estimator.provide_estimations(lower_bound=False)
         c_est = self.c_estimator.provide_estimations(lower_bound=True)
-        x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+        x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
         n, _, c = self.play_and_save(x_t, p_t)
         self.n_estimator.update_model(x_t, n)
         self.c_estimator.update_model(x_t, c)
@@ -135,7 +135,7 @@ class Step2TSLearner(SingleClassLearner):
         alphas_est = self.alphas
         n_est = self.n_estimator.provide_estimations()
         c_est = self.c_estimator.provide_estimations()
-        x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+        x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
         n, _, c = self.play_and_save(x_t, p_t)
         self.n_estimator.update_model(x_t, n)
         self.c_estimator.update_model(x_t, c)
@@ -160,12 +160,12 @@ class Step3UCBLearner(SingleClassLearner):
             alpha = 0.5
         else:
             alphas_est = self.a_estimator.provide_estimations(lower_bound=False)
-            p_t, p_t_ind = single_class_price_opt(self.ps, alphas_est)
+            p_t, p_t_ind = single_class_price_opt(self.ps, alphas_est, self.env.prod_cost)
             alpha = alphas_est[p_t_ind]
 
         n_est = self.n_estimator.provide_estimations(lower_bound=False)
         c_est = self.c_estimator.provide_estimations(lower_bound=True)
-        x_t, x_t_ind = single_class_bid_opt(self.xs, p_t, alpha, n_est, c_est)
+        x_t, x_t_ind = single_class_bid_opt(self.xs, p_t, alpha, n_est, c_est, self.env.prod_cost)
         n, q, c = self.play_and_save(x_t, p_t)
         # ignore the warning: the argmax over the whole array returns an int, not an array
         self.a_estimator.update_estimations(p_t_ind, q, n)
@@ -185,7 +185,7 @@ class Step3TSLearner(SingleClassLearner):
         alphas_est = self.a_estimator.provide_estimations()
         n_est = self.n_estimator.provide_estimations()
         c_est = self.c_estimator.provide_estimations()
-        x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+        x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
         n, q, c = self.play_and_save(x_t, p_t)
         # ignore the warning: the argmax over the whole array returns an int, not an array
         self.a_estimator.update_estimations(p_t_ind, q, n)
@@ -208,10 +208,10 @@ class Step5UCBLearner(SingleClassLearnerNonStationary):
             p_t_ind = self.history.played_rounds()
             # we have no data: we estimate 0.5 for the optimization
             alpha = 0.5
-            x_t, x_t_ind = single_class_bid_opt(self.xs, p_t, alpha, n_est, c_est)
+            x_t, x_t_ind = single_class_bid_opt(self.xs, p_t, alpha, n_est, c_est, self.env.prod_cost)
         else:
             alphas_est = self.estimator.provide_estimations(lower_bound=False)
-            x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+            x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
         n, q, c = self.play_and_save(x_t, p_t)
         # ignore the warning, the argmax over the whole array is a single int and not an array
         self.estimator.update_estimations(p_t_ind, q, n)
@@ -239,10 +239,10 @@ class Step5UCBWINLearner(SingleClassLearnerNonStationary):
             p_t_ind = non_pulled_arms[0]
             p_t = self.ps[p_t_ind]
             # we have no data: we estimate 0.5 for the optimization
-            x_t, _ = single_class_bid_opt(self.xs, p_t, 0.5, n_est, c_est)
+            x_t, _ = single_class_bid_opt(self.xs, p_t, 0.5, n_est, c_est, self.env.prod_cost)
         else:
             alphas_est = estimator.provide_estimations(lower_bound=False)
-            x_t, _, p_t, _ = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+            x_t, _, p_t, _ = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
         self.play_and_save(x_t, p_t)
 
 
@@ -362,7 +362,7 @@ class Step4TSContextGenLearner(MultiClassLearner):
         alphas_est = np.array([self.a_estimators[cl].provide_estimations() for cl in range(n_classes)])
         n_est = np.array([self.n_estimators[cl].provide_estimations() for cl in range(n_classes)])
         c_est = np.array([self.c_estimators[cl].provide_estimations() for cl in range(n_classes)])
-        xs_t, xs_t_ind, ps_t, ps_t_ind = multi_class_opt(self.xs, self.ps, alphas_est, n_est, c_est)
+        xs_t, xs_t_ind, ps_t, ps_t_ind = multi_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
         results = self.play_and_save(self.class_map, xs_t, ps_t)
         results = self.step_results_to_estimated_classes(results, self.class_map)
         for cl in range(len(results)):
@@ -444,7 +444,7 @@ class Step4UCBContextGenLearner(MultiClassLearner):
 
         n_est = np.array([self.n_estimators[cl].provide_estimations() for cl in range(n_classes)])
         c_est = np.array([self.c_estimators[cl].provide_estimations() for cl in range(n_classes)])
-        xs_t, xs_t_ind = multi_class_bid_opt(self.xs, ps_t, alphas, n_est, c_est)
+        xs_t, xs_t_ind = multi_class_bid_opt(self.xs, ps_t, alphas, n_est, c_est, self.env.prod_cost)
         results = self.play_and_save(self.class_map, xs_t, ps_t)
         results = self.step_results_to_estimated_classes(results, self.class_map)
         for cl in range(len(results)):

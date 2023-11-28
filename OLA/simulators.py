@@ -165,7 +165,6 @@ def _plot_single_class_sim_result(result: SingleClassSimResult, fig, axes):
     axes[3].legend()
 
 
-
 def plot_single_class_sim_result(result: SingleClassSimResult, title: str = ""):
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
     axes = axes.flatten()

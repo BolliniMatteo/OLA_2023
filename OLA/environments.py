@@ -15,6 +15,7 @@ class SingleClassEnvironment:
                  N: Callable[[Union[float, np.ndarray]], Union[int, np.ndarray]], en: Callable[[], int],
                  C: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]], ec: Callable[[], float],
                  A: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]],
+                 prod_cost: float,
                  rng: np.random.Generator):
         """
 
@@ -23,6 +24,8 @@ class SingleClassEnvironment:
         :param C: advertising cost given bids(s)
         :param ec: noise for the advertising costs
         :param A: conversion rate given price(s)
+        :param prod_cost: the production cost of a single item. This class simply stores it,
+        but it's not actually used to perform a single day. It's useful to compute the reward given an environment
         :param rng: a numpy random generator (used for the Bernoulli for the conversions)
         """
         self.N = N
@@ -30,6 +33,7 @@ class SingleClassEnvironment:
         self.C = C
         self.ec = ec
         self.A = A
+        self.prod_cost = prod_cost
         self.rng = rng
 
     def perform_day(self, x: float, p: float):
@@ -60,6 +64,7 @@ class SingleClassEnvironmentNonStationary:
                  N: Callable[[Union[float, np.ndarray]], Union[int, np.ndarray]], en: Callable[[], int],
                  C: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]], ec: Callable[[], float],
                  A: Callable[[Union[float, np.ndarray], int], Union[float, np.ndarray]],
+                 prod_cost: float,
                  rng: np.random.Generator):
         """
         :param N: number of clicks given bid(s)
@@ -68,34 +73,16 @@ class SingleClassEnvironmentNonStationary:
         :param ec: noise for the advertising costs
         :param A: conversion rate given price(s) and day.
         The day is in [0,T-1]. The function works for a single day at a time
+        :param prod_cost: the production cost of a single item. This class simply stores it,
+        but it's not actually used to perform a single day. It's useful to compute the reward given an environment
         :param rng: a numpy random generator (used for the Bernoulli for the conversions)
-        """
-        """
-        Parameters
-        ----------
-        N :
-            N:bid->E[number of clicks]
-        en : callable
-            en() returns a sample from a gaussian distribution
-        C : callable
-            C:bid->E[payment for clicks]
-        ec : callable
-            ec() returns a sample from a gaussian distribution
-        A : callable
-            A(price, day) returns the conversion rate considering the day, and thus the phase
-        rng : random generator
-            a numpy random generator to be used (mostly for Bernoulli)
-
-        Returns
-        -------
-        None.
-
         """
         self.N = N
         self.en = en
         self.C = C
         self.ec = ec
         self.A = A
+        self.prod_cost = prod_cost
         self.rng = rng
         self.t = 0
 
@@ -130,11 +117,12 @@ class SingleClassEnvironmentHistory:
 
     def __init__(self, env: SingleClassEnvironment):
         """
-        :param env: ...
+        :param env: the environment this history refers to
         """
         self.N = env.N
         self.C = env.C
         self.A = env.A
+        self.prod_cost = env.prod_cost
 
         self.xs = []
         self.ps = []
@@ -145,24 +133,12 @@ class SingleClassEnvironmentHistory:
     def add_step(self, x: float, p: float, n: int, q: int, c: float):
         """
         Memorizes a new step (i.e., day) that has been performed
-
-        Parameters
-        ----------
-        x : float
-            the chosen bid
-        p : float
-            the chosen price
-        n : int
-            the number of clicks achieved
-        q : int
-            the number of conversions achieved
-        c : float
-            the advertising costs incurred in
-
-        Returns
-        -------
-        None.
-
+        :param x: the chosen bid for the day
+        :param p: the chosen price for the day
+        :param n: the number of clicks during the day
+        :param q: the number of conversions during the day
+        :param c: the advertising cost during the day
+        :return: None
         """
         self.xs.append(x)
         self.ps.append(p)
@@ -185,15 +161,17 @@ class SingleClassEnvironmentHistory:
         cumulative_regrets : numpy array
             the cumulative regrets
         """
-        x_best, _, p_best, _ = opt.single_class_opt(bids, prices, self.A(prices), self.N(bids), self.C(bids))
+        x_best, _, p_best, _ = opt.single_class_opt(bids, prices,
+                                                    self.A(prices), self.N(bids), self.C(bids),
+                                                    self.prod_cost)
         ps = np.array(self.ps)
         xs = np.array(self.xs)
-        return self.compute_reward_stats(xs, ps, self.A, self.N, self.C, x_best, p_best)
+        return self.compute_reward_stats(xs, ps, self.A, self.N, self.C, self.prod_cost, x_best, p_best)
 
     @staticmethod
     def compute_reward_stats(xs: np.ndarray, ps: np.ndarray,
                              A: callable, N: callable, C: callable,
-                             best_bid: float, best_price: float):
+                             prod_cost: float, best_bid: float, best_price: float):
         """
         :return:
         instantaneous_rewards : np.ndarray
@@ -208,9 +186,11 @@ class SingleClassEnvironmentHistory:
         alphas = A(ps)
 
         # here maybe I should use the actual number of conversions and advertising costs with the noise?
-        instantaneous_rewards = alphas * ps * N(xs) - C(xs)
+        clicks = N(xs)
+        costs = C(xs)
+        instantaneous_rewards = alphas * (ps-prod_cost) * clicks - costs
 
-        best_reward = A(best_price) * best_price * N(best_bid) - C(best_bid)
+        best_reward = A(best_price) * (best_price-prod_cost) * N(best_bid) - C(best_bid)
 
         instantaneous_regrets = best_reward - instantaneous_rewards
 
@@ -266,10 +246,12 @@ class SingleClassEnvironmentNonStationaryHistory:
         # compute the optimal reward at each time step
         for t in range(ps.shape[0]):
             alphas = self.env.A(prices, t)
-            x_best, _, p_best, _ = opt.single_class_opt(bids, prices, alphas, self.env.N(bids), self.env.C(bids))
+            x_best, _, p_best, _ = opt.single_class_opt(bids, prices,
+                                                        alphas, self.env.N(bids), self.env.C(bids),
+                                                        self.env.prod_cost)
 
-            best_rs[t] = self.env.A(p_best, t) * p_best * self.env.N(x_best) - self.env.C(x_best)
-            rs[t] = self.env.A(ps[t], t) * ps[t] * self.env.N(xs[t]) - self.env.C(xs[t])
+            best_rs[t] = self.env.A(p_best, t) * (p_best - self.env.prod_cost) * self.env.N(x_best) - self.env.C(x_best)
+            rs[t] = self.env.A(ps[t], t) * (ps[t] - self.env.prod_cost) * self.env.N(xs[t]) - self.env.C(xs[t])
 
         instantaneous_regrets = best_rs - rs
 
@@ -287,7 +269,8 @@ class MultiClassEnvironment:
     """
 
     def __init__(self, n_features: int, class_map: dict, user_prob_map: dict,
-                 n: list, en: Callable, c: list, ec: Callable, a: list, rng: np.random.Generator):
+                 n: list, en: Callable, c: list, ec: Callable, a: list,
+                 prod_cost: float, rng: np.random.Generator):
         """
         :param n_features: the number of features
         :param class_map: a mapping user_type->class (tuple->int), classes are from 0 to len(n)=len(c)=len(a)
@@ -297,6 +280,7 @@ class MultiClassEnvironment:
         :param c: a list of functions for the advertising costs
         :param ec: the noise for the advertising costs
         :param a: a list of functions for the conversion rates
+        :param prod_cost: the production cost for a single item
         :param rng: a numpy random number generator that will be used by this object
         """
         self.n_features = n_features
@@ -307,6 +291,7 @@ class MultiClassEnvironment:
         self.c = c
         self.ec = ec
         self.a = a
+        self.prod_cost = prod_cost
         self.rng = rng
         self.user_profiles = class_map.keys()
 
@@ -403,7 +388,7 @@ class MultiClassEnvironmentHistory:
         alphas = np.array([self.env.a[c](prices) for c in range(self.env.classes_count())])
         ns = np.array([self.env.n[c](bids) for c in range(self.env.classes_count())])
         cs = np.array([self.env.c[c](bids) for c in range(self.env.classes_count())])
-        best_bids, _, best_prices, _ = opt.multi_class_opt(bids, prices, alphas, ns, cs)
+        best_bids, _, best_prices, _ = opt.multi_class_opt(bids, prices, alphas, ns, cs, self.env.prod_cost)
 
         for user_profile in self.env.user_profiles:
             class_index = self.env.class_map[user_profile]
@@ -412,6 +397,7 @@ class MultiClassEnvironmentHistory:
                                                                            self.env.a[class_index],
                                                                            self.env.n[class_index],
                                                                            self.env.c[class_index],
+                                                                           self.env.prod_cost,
                                                                            best_bids[class_index],
                                                                            best_prices[class_index])
             rewards, regrets, cum_rewards, cum_regrets = res_tuple
