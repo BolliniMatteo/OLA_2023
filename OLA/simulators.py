@@ -35,10 +35,12 @@ def simulate_single_class(env_init: Callable[[], Union[SingleClassEnvironment, S
                           bids: np.ndarray, prices: np.ndarray,
                           learner_init: Union[
                               Callable[[SingleClassEnvironment, np.ndarray, np.ndarray], SingleClassLearner],
-                              Callable[[SingleClassEnvironmentNonStationary, np.ndarray, np.ndarray], SingleClassLearnerNonStationary]
+                              Callable[[SingleClassEnvironmentNonStationary, np.ndarray,
+                                        np.ndarray], SingleClassLearnerNonStationary]
                           ],
                           t: int, n_runs=300,
-                          hook_function: Union[Callable[[SingleClassLearner], None], Callable[[SingleClassLearnerNonStationary], None]] = None):
+                          hook_function: Union[Callable[[SingleClassLearner], None], Callable[
+                              [SingleClassLearnerNonStationary], None]] = None):
     """
     Execute n_runs simulations of a single class agent
     and returns the mean and std dev of the reward stats.
@@ -149,11 +151,12 @@ def simulate_multi_class(env_init: Callable[[], MultiClassEnvironment],
     ))
 
 
-def _plot_single_class_sim_result(result: SingleClassSimResult, fig, axes):
-    time_steps = [i for i in range(1, result.inst_regrets_mean.shape[0]+1)]
+def _plot_single_class_sim_result(result: SingleClassSimResult, opt_rewards: np.ndarray, fig, axes):
+    time_steps = [i for i in range(1, result.inst_regrets_mean.shape[0] + 1)]
     axes[0].set_title('Instantaneous rewards')
     axes[0].plot(time_steps, result.inst_rewards_mean, label='mean')
     # axes[0].plot(time_steps, result.inst_rewards_mean + result.inst_rewards_std, label='std')
+    axes[0].plot(time_steps, opt_rewards, label='optimal')
     axes[0].legend()
 
     axes[1].set_title('Instantaneous regrets')
@@ -164,6 +167,7 @@ def _plot_single_class_sim_result(result: SingleClassSimResult, fig, axes):
     axes[2].set_title('Cumulative reward')
     axes[2].plot(time_steps, result.cum_rewards_mean, label='mean')
     # axes[2].plot(time_steps, result.cum_rewards_mean + result.cum_rewards_std, label='std')
+    axes[2].plot(time_steps, np.cumsum(opt_rewards), label='optimal')
     axes[2].legend()
 
     axes[3].set_title('Cumulative regret')
@@ -172,20 +176,63 @@ def _plot_single_class_sim_result(result: SingleClassSimResult, fig, axes):
     axes[3].legend()
 
 
-def plot_single_class_sim_result(result: SingleClassSimResult, title: str = ""):
+def plot_single_class_sim_result(result: SingleClassSimResult, opt_rewards: np.ndarray, title: str = ""):
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
     axes = axes.flatten()
     fig.suptitle(title)
-    _plot_single_class_sim_result(result, fig, axes)
+    _plot_single_class_sim_result(result, opt_rewards, fig, axes)
     plt.show()
 
 
-def plot_multi_class_sim_result(result: MultiClassSimResult, title: str = ""):
+def plot_multiple_single_cass_results(results: list, opt_rewards: np.ndarray, algorithms: list, plot_std=False):
+    # useful, for instance, to compare UCB and TS
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
+    axes = axes.flatten()
+    time_steps = [i for i in range(1, opt_rewards.shape[0] + 1)]
+    colors = ['b', 'r', 'c', 'm']
+    for i in range(len(results)):
+        axes[0].plot(time_steps, results[i].inst_rewards_mean, label=algorithms[i], color=colors[i])
+        axes[1].plot(time_steps, results[i].inst_regrets_mean, label=algorithms[i], color=colors[i])
+        axes[2].plot(time_steps, results[i].cum_rewards_mean, label=algorithms[i], color=colors[i])
+        axes[3].plot(time_steps, results[i].cum_regrets_mean, label=algorithms[i], color=colors[i])
+
+        if plot_std is True:
+            axes[0].plot(time_steps, results[i].inst_rewards_mean + results[i].inst_rewards_std,
+                         linestyle='dashed', color=colors[i])
+            axes[0].plot(time_steps, results[i].inst_rewards_mean - results[i].inst_rewards_std,
+                         linestyle='dashed', color=colors[i])
+            axes[1].plot(time_steps, results[i].inst_regrets_mean + results[i].inst_regrets_std,
+                         linestyle='dashed', color=colors[i])
+            axes[1].plot(time_steps, results[i].inst_regrets_mean - results[i].inst_regrets_std,
+                         linestyle='dashed', color=colors[i])
+            axes[2].plot(time_steps, results[i].cum_rewards_mean + results[i].cum_rewards_std,
+                         linestyle='dashed', color=colors[i])
+            axes[2].plot(time_steps, results[i].cum_rewards_mean - results[i].cum_rewards_std,
+                         linestyle='dashed', color=colors[i])
+            axes[3].plot(time_steps, results[i].cum_regrets_mean + results[i].cum_regrets_std,
+                         linestyle='dashed', color=colors[i])
+            axes[3].plot(time_steps, results[i].cum_regrets_mean - results[i].cum_regrets_std,
+                         linestyle='dashed', color=colors[i])
+
+    axes[0].plot(time_steps, opt_rewards, label='optimal', color='g')
+    axes[2].plot(time_steps, np.cumsum(opt_rewards), label='optimal', color='g')
+    axes[0].set_title('Instantaneous rewards')
+    axes[1].set_title('Instantaneous regrets')
+    axes[2].set_title('Cumulative reward')
+    axes[3].set_title('Cumulative regret')
+    axes[0].legend()
+    axes[1].legend()
+    axes[2].legend()
+    axes[3].legend()
+    plt.show()
+
+
+def plot_multi_class_sim_result(result: MultiClassSimResult, opt_rewards, title: str = ""):
     # TODO: this at the moment only plots aggregate results
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
     axes = axes.flatten()
     fig.suptitle(title)
-    _plot_single_class_sim_result(result.aggregate_results, fig, axes)
+    _plot_single_class_sim_result(result.aggregate_results, opt_rewards, fig, axes)
     # if title:
     #     filename = f"{title}.png"
     #     print(f"Saving {filename}")

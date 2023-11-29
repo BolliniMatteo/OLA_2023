@@ -58,9 +58,10 @@ class SingleClassLearnerNonStationary(ABC):
 
 
 class Step1UCBLearner(SingleClassLearner, ABC):
-    def __init__(self, environment: envs.SingleClassEnvironment, bids: np.ndarray, prices: np.ndarray):
+    def __init__(self, environment: envs.SingleClassEnvironment,
+                 bids: np.ndarray, prices: np.ndarray, c: float = 1):
         super().__init__(environment, bids, prices)
-        self.estimator = est.BeUCB1Estimator(self.ps.shape[0])
+        self.estimator = est.BeUCB1Estimator(self.ps.shape[0], c)
 
     def play_round(self):
         n_est = self.env.N(self.xs)
@@ -144,9 +145,9 @@ class Step2TSLearner(SingleClassLearner):
 
 class Step3UCBLearner(SingleClassLearner):
     def __init__(self, environment: envs.SingleClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float):
+                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, c: float = 1):
         super().__init__(environment, bids, prices)
-        self.a_estimator = est.BeUCB1Estimator(prices.shape[0])
+        self.a_estimator = est.BeUCB1Estimator(prices.shape[0], c)
         self.n_estimator = est.GPUCBEstimator(bids, kernel, alpha, beta)
         self.c_estimator = est.GPUCBEstimator(bids, kernel, alpha, beta)
 
@@ -195,9 +196,10 @@ class Step3TSLearner(SingleClassLearner):
 
 
 class Step5UCBLearner(SingleClassLearnerNonStationary):
-    def __init__(self, environment: envs.SingleClassEnvironmentNonStationary, bids: np.ndarray, prices: np.ndarray):
+    def __init__(self, environment: envs.SingleClassEnvironmentNonStationary,
+                 bids: np.ndarray, prices: np.ndarray, c: float = 1):
         super().__init__(environment, bids, prices)
-        self.estimator = est.BeUCB1Estimator(self.ps.shape[0])
+        self.estimator = est.BeUCB1Estimator(self.ps.shape[0], c)
 
     def play_round(self):
         n_est = self.env.N(self.xs)
@@ -221,16 +223,17 @@ class Step5UCBLearner(SingleClassLearnerNonStationary):
 class Step5UCBWINLearner(SingleClassLearnerNonStationary):
     def __init__(self, environment: envs.SingleClassEnvironmentNonStationary,
                  bids: np.ndarray, prices: np.ndarray,
-                 win_size: int):
+                 win_size: int, c: float = 1):
         super().__init__(environment, bids, prices)
         self.win_size = win_size
+        self.c = c
 
     def play_round(self):
         n_est = self.env.N(self.xs)
         c_est = self.env.C(self.xs)
         t = self.history.played_rounds()
         # first round is t=0
-        estimator = est.BeUCB1Estimator(self.ps.shape[0])
+        estimator = est.BeUCB1Estimator(self.ps.shape[0],self.c)
         # remember that t is excluded in the range()
         for i in range(max(0, t - self.win_size), t):
             p_ind = np.where(self.ps == self.history.ps[i])[0][0]

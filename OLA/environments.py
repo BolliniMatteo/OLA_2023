@@ -1,5 +1,6 @@
 import numpy as np
 from typing import Callable, Union
+from abc import ABC, abstractmethod
 
 import optimization_utilities as opt
 
@@ -109,21 +110,8 @@ class SingleClassEnvironmentNonStationary:
         return n, q, c
 
 
-class SingleClassEnvironmentHistory:
-    """
-    History of all the steps performed by an environment
-    Observe that it is not stored inside the environment itself, but by the learner
-    """
-
-    def __init__(self, env: SingleClassEnvironment):
-        """
-        :param env: the environment this history refers to
-        """
-        self.N = env.N
-        self.C = env.C
-        self.A = env.A
-        self.prod_cost = env.prod_cost
-
+class SingleClassHistory(ABC):
+    def __init__(self):
         self.xs = []
         self.ps = []
         self.ns = []
@@ -146,6 +134,10 @@ class SingleClassEnvironmentHistory:
         self.qs.append(q)
         self.cs.append(c)
 
+    def played_rounds(self):
+        return len(self.ps)
+
+    @abstractmethod
     def reward_stats(self, bids: np.ndarray, prices: np.ndarray):
         """
         Computes some things regarding the reward/regret during the history
@@ -161,12 +153,34 @@ class SingleClassEnvironmentHistory:
         cumulative_regrets : numpy array
             the cumulative regrets
         """
-        x_best, _, p_best, _ = opt.single_class_opt(bids, prices,
-                                                    self.A(prices), self.N(bids), self.C(bids),
-                                                    self.prod_cost)
-        ps = np.array(self.ps)
-        xs = np.array(self.xs)
-        return self.compute_reward_stats(xs, ps, self.A, self.N, self.C, self.prod_cost, x_best, p_best)
+        pass
+
+    @abstractmethod
+    def clairvoyant_rewards(self, bids: np.ndarray, prices: np.ndarray, T):
+        """
+        Provides the reward of the optimal solution in the interval of time [0,T-1]
+        :param bids: the available bids
+        :param prices: the available prices
+        :param T: the time horizon (from 0)
+        :return: opt_rewards, opt_rewards[t] is the optimal reward at time t
+        """
+        pass
+
+    @staticmethod
+    def reward(ps: Union[float, np.ndarray],
+               alphas: Union[float, np.ndarray], ns: Union[float, np.ndarray], cs: Union[float, np.ndarray],
+               prod_cost: float):
+        """
+        Computes the reward of one or multiple steps
+        A simple shortcut for the formula alpha*(price-prod_cost)*clicks - costs
+        :param ps: the played prices or a single one
+        :param alphas: the alpha value for each price
+        :param ns: the number of clicks for each step
+        :param cs: the advertising costs for each step
+        :param prod_cost: the production cost
+        :return: the rewards (float or array)
+        """
+        return alphas * (ps - prod_cost) * ns - cs
 
     @staticmethod
     def compute_reward_stats(xs: np.ndarray, ps: np.ndarray,
@@ -188,57 +202,69 @@ class SingleClassEnvironmentHistory:
         # here maybe I should use the actual number of conversions and advertising costs with the noise?
         clicks = N(xs)
         costs = C(xs)
-        instantaneous_rewards = alphas * (ps-prod_cost) * clicks - costs
+        instantaneous_rewards = SingleClassHistory.reward(ps, alphas, clicks, costs, prod_cost)
 
-        best_reward = A(best_price) * (best_price-prod_cost) * N(best_bid) - C(best_bid)
+        best_reward = SingleClassHistory.reward(best_price, A(best_price), N(best_bid), C(best_bid), prod_cost)
 
         instantaneous_regrets = best_reward - instantaneous_rewards
 
         return instantaneous_rewards, instantaneous_regrets, np.cumsum(instantaneous_rewards), np.cumsum(
             instantaneous_regrets)
 
-    def played_rounds(self):
-        return len(self.ps)
 
+class SingleClassEnvironmentHistory(SingleClassHistory):
+    """
+    History of all the steps performed by an environment
+    Observe that it is not stored inside the environment itself, but by the learner
+    """
 
-class SingleClassEnvironmentNonStationaryHistory:
-
-    def __init__(self, env: SingleClassEnvironmentNonStationary):
-        self.env = env
-        # played bids
-        self.xs = []
-        # played prices
-        self.ps = []
-        # achieved clicks
-        self.ns = []
-        # achieved conversions
-        self.qs = []
-        # incurred advertising costs
-        self.cs = []
-
-    def add_step(self, x: float, p: float, n: int, q: int, c: float):
+    def __init__(self, env: SingleClassEnvironment):
         """
-        Memorizes a new step (i.e., day)
-        :param x: the chosen bid
-        :param p: the chosen price
-        :param n: the achieved number of clicks
-        :param q: the achieved number of conversions
-        :param c: the achieved advertising cost
-        :return: None
+        :param env: the environment this history refers to
         """
-        self.xs.append(x)
-        self.ps.append(p)
-        self.ns.append(n)
-        self.qs.append(q)
-        self.cs.append(c)
+        super().__init__()
+        self.N = env.N
+        self.C = env.C
+        self.A = env.A
+        self.prod_cost = env.prod_cost
 
     def reward_stats(self, bids: np.ndarray, prices: np.ndarray):
         """
-
-        :param bids: the available bids to choose from
-        :param prices: the available prices to choose from
-        :return: (instantaneous rewards, instantaneous regrets, cumulative rewards, cumulative regrets)
+        Computes some things regarding the reward/regret during the history
+        :param bids: the available bids
+        :param prices: the available prices
+        :return:
+        instantaneous_rewards : numpy array
+            the instantaneous rewards
+        instantaneous_regrets : numpy array
+            the instantaneous regrets
+        cumulative_rewards : numpy array
+            the cumulative rewards
+        cumulative_regrets : numpy array
+            the cumulative regrets
         """
+        x_best, _, p_best, _ = opt.single_class_opt(bids, prices,
+                                                    self.A(prices), self.N(bids), self.C(bids),
+                                                    self.prod_cost)
+        ps = np.array(self.ps)
+        xs = np.array(self.xs)
+        return SingleClassHistory.compute_reward_stats(xs, ps, self.A, self.N, self.C, self.prod_cost, x_best, p_best)
+
+    def clairvoyant_rewards(self, bids: np.ndarray, prices: np.ndarray, T):
+        x_best, _, p_best, _ = opt.single_class_opt(bids, prices,
+                                                    self.A(prices), self.N(bids), self.C(bids),
+                                                    self.prod_cost)
+        opt_rew = SingleClassHistory.reward(p_best, self.A(p_best), self.N(p_best), self.C(p_best), self.prod_cost)
+        return np.full(T, opt_rew)
+
+
+class SingleClassEnvironmentNonStationaryHistory(SingleClassHistory):
+
+    def __init__(self, env: SingleClassEnvironmentNonStationary):
+        super().__init__()
+        self.env = env
+
+    def reward_stats(self, bids: np.ndarray, prices: np.ndarray):
         ps = np.array(self.ps)
         xs = np.array(self.xs)
         rs = np.zeros(ps.shape[0])
@@ -258,8 +284,18 @@ class SingleClassEnvironmentNonStationaryHistory:
         return rs, instantaneous_regrets, np.cumsum(rs), np.cumsum(
             instantaneous_regrets)
 
-    def played_rounds(self):
-        return len(self.ps)
+    def clairvoyant_rewards(self, bids: np.ndarray, prices: np.ndarray, T):
+        opt_rewards = np.zeros(T)
+        for t in range(T):
+            alphas = self.env.A(prices, t)
+            x_best, _, p_best, _ = opt.single_class_opt(bids, prices,
+                                                        alphas, self.env.N(bids), self.env.C(bids),
+                                                        self.env.prod_cost)
+
+            opt_rewards[t] = SingleClassHistory.reward(p_best, self.env.A(p_best, t),
+                                                       self.env.N(x_best), self.env.C(x_best),
+                                                       self.env.prod_cost)
+        return opt_rewards
 
 
 class MultiClassEnvironment:
@@ -392,14 +428,14 @@ class MultiClassEnvironmentHistory:
 
         for user_profile in self.env.user_profiles:
             class_index = self.env.class_map[user_profile]
-            res_tuple = SingleClassEnvironmentHistory.compute_reward_stats(np.array(self.xs[user_profile]),
-                                                                           np.array(self.ps[user_profile]),
-                                                                           self.env.a[class_index],
-                                                                           self.env.n[class_index],
-                                                                           self.env.c[class_index],
-                                                                           self.env.prod_cost,
-                                                                           best_bids[class_index],
-                                                                           best_prices[class_index])
+            res_tuple = SingleClassHistory.compute_reward_stats(np.array(self.xs[user_profile]),
+                                                                np.array(self.ps[user_profile]),
+                                                                self.env.a[class_index],
+                                                                self.env.n[class_index],
+                                                                self.env.c[class_index],
+                                                                self.env.prod_cost,
+                                                                best_bids[class_index],
+                                                                best_prices[class_index])
             rewards, regrets, cum_rewards, cum_regrets = res_tuple
             instantaneous_rewards[user_profile] = rewards
             instantaneous_regrets[user_profile] = regrets
@@ -443,7 +479,8 @@ class MultiClassEnvironmentHistory:
         """
         # This implementation doesn't work as expected... maybe now it's fixed
         # TODO: So is it fixed or not?
-        instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets = self.stats_for_class(bids, prices)
+        instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets = self.stats_for_class(
+            bids, prices)
         instantaneous_rewards = np.sum(instantaneous_rewards, axis=0)
         instantaneous_regrets = np.sum(instantaneous_regrets, axis=0)
         cumulative_rewards = np.sum(cumulative_rewards, axis=0)

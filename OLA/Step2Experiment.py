@@ -5,7 +5,7 @@ import warnings
 from typing import Union
 from datetime import datetime
 
-from OLA.environments import SingleClassEnvironment
+from OLA.environments import SingleClassEnvironment, SingleClassEnvironmentHistory
 from OLA.base_learners import Step2UCBLearner, Step2TSLearner
 import new_environment_properties as ep
 from OLA.simulators import simulate_single_class
@@ -40,10 +40,10 @@ def store_gp_mean_estimation(learner: Union[Step2TSLearner, Step2UCBLearner], n_
     else:
         n_est = learner.n_estimator
         c_est = learner.c_estimator
-    # now, the estimator are of different types (but inherit the same parent)
+    # now, the estimator are of different types (but inherit from the same parent)
     # and the two classes may call them with different names
-    # practically they have the same name, so the previous if seems non-necessarily
-    # n_est, c_est for me are of type BaseGPEstimator
+    # practically they have the same name, so the previous "if" seems non-necessarily
+    # n_est, c_est here are considered of type BaseGPEstimator
     n_estimations.append(n_est.mu_vector)
     c_estimations.append(c_est.mu_vector)
 
@@ -87,6 +87,8 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore")
 
     T = 365
+    opt_rewards = SingleClassEnvironmentHistory(env_init_step2(rng)).clairvoyant_rewards(bids, prices, T)
+
     n_runs = 100
     click_estimations = []
     costs_estimations = []
@@ -95,7 +97,7 @@ if __name__ == '__main__':
     sim_object_gpucb = simulate_single_class(env_init, bids, prices, learner_init_gpucb, T, n_runs=n_runs,
                                              hook_function=lambda learner: store_gp_mean_estimation(learner, click_estimations, costs_estimations))
     print("Elapsed time: ", (datetime.now() - start_time).total_seconds())
-    plot_single_class_sim_result(sim_object_gpucb)
+    plot_single_class_sim_result(sim_object_gpucb, opt_rewards)
     plot_gp_mean_estimations(click_estimations, costs_estimations)
 
     click_estimations = []
@@ -105,5 +107,5 @@ if __name__ == '__main__':
     sim_object_ts = simulate_single_class(env_init, bids, prices, learner_init_gpts, T, n_runs=n_runs,
                                           hook_function=lambda learner: store_gp_mean_estimation(learner, click_estimations, costs_estimations))
     print("Elapsed time: ", (datetime.now() - start_time).total_seconds())
-    plot_single_class_sim_result(sim_object_ts)
+    plot_single_class_sim_result(sim_object_ts, opt_rewards)
     plot_gp_mean_estimations(click_estimations, costs_estimations)

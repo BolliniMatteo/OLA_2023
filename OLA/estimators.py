@@ -23,12 +23,15 @@ class BeUCB1Estimator:
     You may want to use a dictionary, list or other sort of mappings with the true value
     """
 
-    def __init__(self, na: int):
+    def __init__(self, na: int, c: float = 1):
         """
         :param na: the number of arms
+        :param c: a constant multiplicative factor for the UCB bound.
+        1 to use the default bound
         """
         self.play_counts = np.zeros(na, dtype=int)
         self.means = np.zeros(na, dtype=float)
+        self.c = c
 
     def provide_estimations(self, lower_bound=False):
         """
@@ -43,10 +46,10 @@ class BeUCB1Estimator:
         thetas = np.copy(self.means)
         if lower_bound:
             thetas[zero_mask] = float('-inf')
-            thetas[non_zero_mask] = thetas[non_zero_mask] - np.sqrt((2*np.log(t))/self.play_counts)
+            thetas[non_zero_mask] = thetas[non_zero_mask] - self.c * np.sqrt((2*np.log(t))/self.play_counts)
         else:
             thetas[zero_mask] = float('+inf')
-            thetas[non_zero_mask] = thetas[non_zero_mask] + np.sqrt((2*np.log(t))/self.play_counts)
+            thetas[non_zero_mask] = thetas[non_zero_mask] + self.c * np.sqrt((2*np.log(t))/self.play_counts)
         return thetas
 
     def update_estimations(self, played_arm: int, positive_rewards: int, total_rewards: int):
