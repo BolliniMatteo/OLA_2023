@@ -8,7 +8,7 @@ from OLA.base_learners import Step3UCBLearner
 from OLA.base_learners import Step3TSLearner
 import new_environment_properties as ep
 from OLA.simulators import simulate_single_class
-from OLA.simulators import plot_single_class_sim_result, plot_multiple_single_cass_results
+from OLA.simulators import plot_single_class_sim_result, plot_multiple_single_class_results
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 
 
@@ -67,4 +67,4 @@ if __name__ == '__main__':
     print("Elapsed time: ", (datetime.now()-start_time).total_seconds())
     # plot_single_class_sim_result(sim_object_ts, opt_rewards)
 
-    plot_multiple_single_cass_results([sim_object_gpucb, sim_object_ts], opt_rewards, ['GP-UCB1', 'GP-TS'])
+    plot_multiple_single_class_results([sim_object_gpucb, sim_object_ts], opt_rewards, ['GP-UCB1', 'GP-TS'])

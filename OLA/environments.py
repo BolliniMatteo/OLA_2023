@@ -254,7 +254,7 @@ class SingleClassEnvironmentHistory(SingleClassHistory):
         x_best, _, p_best, _ = opt.single_class_opt(bids, prices,
                                                     self.A(prices), self.N(bids), self.C(bids),
                                                     self.prod_cost)
-        opt_rew = SingleClassHistory.reward(p_best, self.A(p_best), self.N(p_best), self.C(p_best), self.prod_cost)
+        opt_rew = SingleClassHistory.reward(p_best, self.A(p_best), self.N(x_best), self.C(x_best), self.prod_cost)
         return np.full(T, opt_rew)
 
 
@@ -346,14 +346,14 @@ class MultiClassEnvironment:
             price = prices[user_prof]
             user_class = self.class_map[user_prof]
             user_prob = self.user_prob_map[user_prof]
-            n = (self.n[user_class](bid) + self.en()) * user_prob
+            n = (self.n[user_class](bid) + self.en()[0]) * user_prob
             n = int(n)
             # there is the possibility that the noise reduces n below 1
             if n < 1:
                 n = 1
             samples = self.rng.binomial(n=1, p=self.a[user_class](price), size=n)
             q = np.sum(samples)
-            c = (self.c[user_class](bid) + self.ec()) * user_prob
+            c = (self.c[user_class](bid) + self.ec()[0]) * user_prob
             # again due to the noise, we want to avoid negative values
             if c < 0.1:
                 c = 0.1
@@ -428,10 +428,12 @@ class MultiClassEnvironmentHistory:
 
         for user_profile in self.env.user_profiles:
             class_index = self.env.class_map[user_profile]
+            user_profile_probability = self.env.user_prob_map[user_profile]
+            n_per_user_profile = lambda bid: self.env.n[class_index](bid) * user_profile_probability
             res_tuple = SingleClassHistory.compute_reward_stats(np.array(self.xs[user_profile]),
                                                                 np.array(self.ps[user_profile]),
                                                                 self.env.a[class_index],
-                                                                self.env.n[class_index],
+                                                                n_per_user_profile,
                                                                 self.env.c[class_index],
                                                                 self.env.prod_cost,
                                                                 best_bids[class_index],
@@ -500,3 +502,22 @@ class MultiClassEnvironmentHistory:
             "conversions": self.qs,
             "costs": self.cs
         }
+
+    def clairvoyant_rewards(self, bids: np.ndarray, prices: np.ndarray, T: int):
+        alphas = np.array([self.env.a[c](prices) for c in range(self.env.classes_count())])
+        ns = np.array([self.env.n[c](bids) for c in range(self.env.classes_count())])
+        cs = np.array([self.env.c[c](bids) for c in range(self.env.classes_count())])
+        best_bids, _, best_prices, _ = opt.multi_class_opt(bids, prices, alphas, ns, cs, self.env.prod_cost)
+
+        opt_reward = 0
+        for cl in range(self.env.classes_count()):
+            r = SingleClassHistory.reward(
+                best_prices[cl],
+                self.env.a[cl](best_prices[cl]),
+                self.env.n[cl](best_bids[cl]),
+                self.env.c[cl](best_bids[cl]),
+                self.env.prod_cost
+            )
+            opt_reward += r
+
+        return np.full(T, opt_reward)

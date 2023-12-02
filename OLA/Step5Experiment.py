@@ -5,7 +5,7 @@ from OLA.base_learners import Step5UCBLearner
 from OLA.base_learners import Step5UCBWINLearner
 import new_environment_properties as ep
 from OLA.simulators import simulate_single_class
-from OLA.simulators import plot_single_class_sim_result, plot_multiple_single_cass_results
+from OLA.simulators import plot_single_class_sim_result, plot_multiple_single_class_results
 
 
 def env_init_step5(rng: np.random.Generator):
@@ -40,4 +40,4 @@ if __name__ == '__main__':
                                             lambda env, bids, prices: Step5UCBWINLearner(env, bids, prices, win_size, c),
                                             T, n_runs=n_runs)
     # plot_single_class_sim_result(sim_object_win, opt_rewards)
-    plot_multiple_single_cass_results([sim_object_ucb1, sim_object_win], opt_rewards, ['UCB1', 'WIN-UCB1'])
+    plot_multiple_single_class_results([sim_object_ucb1, sim_object_win], opt_rewards, ['UCB1', 'WIN-UCB1'])

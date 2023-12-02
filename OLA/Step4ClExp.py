@@ -34,7 +34,7 @@ def main():
     rng = np.random.default_rng(seed=seed)
     env_init = lambda: env_init_step4(rng)
 
-    learner_init = lambda env: Step4ClairvoyantLearner(env,bids,prices)
+    learner_init = lambda env: Step4ClairvoyantLearner(env, bids, prices)
 
     T = 50  # TODO: should be 365
     n_runs = 1

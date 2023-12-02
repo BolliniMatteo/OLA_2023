@@ -5,7 +5,7 @@ from OLA.environments import SingleClassEnvironment,SingleClassEnvironmentHistor
 from OLA.base_learners import Step1UCBLearner
 from OLA.base_learners import Step1TSLearner
 import new_environment_properties as ep
-from OLA.simulators import simulate_single_class, plot_multiple_single_cass_results
+from OLA.simulators import simulate_single_class, plot_multiple_single_class_results
 from OLA.simulators import plot_single_class_sim_result
 
 
@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
     print("UCB - number of times (on average) the worst arm is played: ", worst_arm_count_ucb.count / n_runs)
     print("TS - number of times (on average) the worst arm is played: ", worst_arm_count_ts.count / n_runs)
-    plot_multiple_single_cass_results([sim_object_ucb1, sim_object_ts], opt_rewards, ['UCB1', 'TS'])
+    plot_multiple_single_class_results([sim_object_ucb1, sim_object_ts], opt_rewards, ['UCB1', 'TS'])
 
 
 """

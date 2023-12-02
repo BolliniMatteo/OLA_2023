@@ -184,7 +184,7 @@ def plot_single_class_sim_result(result: SingleClassSimResult, opt_rewards: np.n
     plt.show()
 
 
-def plot_multiple_single_cass_results(results: list, opt_rewards: np.ndarray, algorithms: list, plot_std=False):
+def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, algorithms: list, plot_std=False):
     # useful, for instance, to compare UCB and TS
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
     axes = axes.flatten()

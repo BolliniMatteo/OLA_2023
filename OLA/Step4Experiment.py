@@ -1,16 +1,15 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import sklearn.gaussian_process.kernels
 import warnings
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 
-import environment_properties as ep
+import new_environment_properties as ep
 from OLA.base_learners import Step4TSContextGenLearner, Step4TSOneClassLearner, Step4TSRealClassesLearner, \
     Step4UCBContextGenLearner, Step4UCBOneClassLearner, Step4UCBRealClassesLearner
 from OLA.context_gen import ContextGeneration
-from OLA.environments import MultiClassEnvironment
+from OLA.environments import MultiClassEnvironment, MultiClassEnvironmentHistory
 from OLA.simulators import simulate_multi_class, plot_multi_class_sim_result
-
+from OLA.test_learners import Step4ClairvoyantLearner
 
 # TODO: address the kernel warnings
 warnings.filterwarnings("ignore")
@@ -22,11 +21,11 @@ def env_init_step4(rng: np.random.Generator):
     class_map = ep.class_map
     user_prob_map = ep.user_prob_map
     n = [lambda bid: ep.daily_clicks_curve_multiclass(bid, cl) for cl in range(n_classes)]
-    en = lambda: ep.click_curve_noise(rng, 1)
+    en = lambda: ep.daily_click_curve_noise(rng, 1)
     c = [lambda bid: ep.click_cumulative_cost_multiclass(bid, cl) for cl in range(n_classes)]
-    ec = lambda: ep.click_cumulative_cost_noise(rng, 1)
+    ec = lambda: ep.advertising_costs_curve_noise(rng, 1)
     a = [lambda p: ep.click_conversion_rate_multiclass(p, cl) for cl in range(n_classes)]
-    return MultiClassEnvironment(n_features, class_map, user_prob_map, n, en, c, ec, a, rng)
+    return MultiClassEnvironment(n_features, class_map, user_prob_map, n, en, c, ec, a, ep.get_production_cost(), rng)
 
 
 def gpucb_known_learner_init(env: MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
@@ -89,8 +88,8 @@ def main():
                                                                       burn_in, hoeffding_bound_confidence)
     learner_init_gpts_one = lambda env: gpts_one_learner_init(env, bids, prices, kernel, alpha, rng, burn_in)
 
-    T = 100  # TODO: should be 365
-    n_runs = 10
+    T = 10  # TODO: should be 365
+    n_runs = 1
 
     print("GP-UCB learner, known classes", flush=True)
     res_gpucb_known = simulate_multi_class(env_init, learner_init_gpucb_known, T, n_runs)
@@ -110,13 +109,15 @@ def main():
     print("GP-TS learner, unknown classes using one context", flush=True)
     res_ts_one = simulate_multi_class(env_init, learner_init_gpts_one, T, n_runs)
 
-    plot_multi_class_sim_result(res_gpucb_known, "GP-UCB - Known classes")
-    plot_multi_class_sim_result(res_gpucb_unknown, "GP-UCB - Unknown classes with context generation")
-    plot_multi_class_sim_result(res_gpucb_one, "GP-UCB - Unknown classes using one context")
+    opt_rewards = MultiClassEnvironmentHistory(env_init()).clairvoyant_rewards(bids, prices, T)
 
-    plot_multi_class_sim_result(res_ts_known, "GP-TS - Known classes")
-    plot_multi_class_sim_result(res_ts_unknown, "GP-TS - Unknown classes with context generation")
-    plot_multi_class_sim_result(res_ts_one, "GP-TS - Unknown classes using one context")
+    plot_multi_class_sim_result(res_gpucb_known, opt_rewards, "GP-UCB - Known classes")
+    plot_multi_class_sim_result(res_gpucb_unknown, opt_rewards, "GP-UCB - Unknown classes with context generation")
+    plot_multi_class_sim_result(res_gpucb_one, opt_rewards, "GP-UCB - Unknown classes using one context")
+
+    plot_multi_class_sim_result(res_ts_known, opt_rewards, "GP-TS - Known classes")
+    plot_multi_class_sim_result(res_ts_unknown, opt_rewards, "GP-TS - Unknown classes with context generation")
+    plot_multi_class_sim_result(res_ts_one, opt_rewards, "GP-TS - Unknown classes using one context")
 
 
 if __name__ == '__main__':
