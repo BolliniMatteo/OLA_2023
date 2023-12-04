@@ -421,7 +421,7 @@ class Step4UCBContextGenLearner(MultiClassLearner):
 
     def play_round(self):
         played_rounds = self.history.played_rounds()
-        if played_rounds > self.burn_in and played_rounds % 14 == 13:
+        if played_rounds >= self.burn_in and played_rounds % 14 == 13:
             self._update_context()
 
         n_classes = len(set(self.class_map.values()))
