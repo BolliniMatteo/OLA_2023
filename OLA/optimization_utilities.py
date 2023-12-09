@@ -18,7 +18,7 @@ def single_class_bid_opt(bids: np.ndarray, price: float, alpha: float,
 
 def single_class_opt(bids: np.ndarray, prices: np.ndarray,
                      estimated_alphas: np.ndarray, estimated_clicks: np.ndarray, estimated_costs: np.ndarray,
-                     prod_cost : float):
+                     prod_cost: float):
     """
     Given the possible bids and prices and the estimated environment parameters,
     this function returns the best solution.
