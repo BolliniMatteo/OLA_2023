@@ -264,6 +264,24 @@ class SingleClassEnvironmentNonStationaryHistory(SingleClassHistory):
         super().__init__()
         self.env = env
 
+    def bernoulli_estimates(self):
+        """
+        We need the mean of the rewards obtained until some point, however,
+        in this setting we try to pull the arm many times (one for each click),
+        therefore we generalize the reward obtained at time t to the percentage
+        of conversions w.r.t. the number of clicks, rather than the number of conversions
+
+        This is required for UCB-CD with CUSUM, it needs the mean number of rewards from
+        some timestep s to t. Since they are not either 1 nor zero 0, we just use the "instant"
+        conversion rate. The thing is we need to use the random walk w.r.t to whatever rewards
+        we use to make our estimations, and in our estimations (for UCB) we basically use
+        the "instant" conversion rate.
+        """
+        be_estimates = []
+        for i in range(len(self.ns)):
+            be_estimates.append(self.qs[i] / self.ns[i])
+        return be_estimates
+
     def reward_stats(self, bids: np.ndarray, prices: np.ndarray):
         ps = np.array(self.ps)
         xs = np.array(self.xs)
