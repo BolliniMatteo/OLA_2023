@@ -29,9 +29,18 @@ class BeUCB1Estimator:
         :param c: a constant multiplicative factor for the UCB bound.
         1 to use the default bound
         """
+        self.na = na
         self.play_counts = np.zeros(na, dtype=int)
         self.means = np.zeros(na, dtype=float)
         self.c = c
+
+    def reset_estimates(self):
+        """
+        This for when a change detection algorithm decides
+        to reset everything
+        """
+        self.means = np.zeros(self.na, dtype=float)
+        self.play_counts = np.zeros(self.na, dtype=int)
 
     def provide_estimations(self, lower_bound=False):
         """
