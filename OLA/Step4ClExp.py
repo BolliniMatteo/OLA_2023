@@ -5,7 +5,7 @@ from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 
 import environment_properties as ep
 from OLA.test_learners import Step4ClairvoyantLearner
-from OLA.context_gen import ContextGeneration
+from OLA.context_gen import ActualContextGenerator
 from OLA.environments import MultiClassEnvironment
 from OLA.simulators import simulate_multi_class, plot_multi_class_sim_result
 

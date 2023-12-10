@@ -448,6 +448,7 @@ class MultiClassEnvironmentHistory:
             class_index = self.env.class_map[user_profile]
             user_profile_probability = self.env.user_prob_map[user_profile]
             n_per_user_profile = lambda bid: self.env.n[class_index](bid) * user_profile_probability
+            # TODO: this is probably wrong: why is n the only thing to be scaled by user_profile_probability?
             res_tuple = SingleClassHistory.compute_reward_stats(np.array(self.xs[user_profile]),
                                                                 np.array(self.ps[user_profile]),
                                                                 self.env.a[class_index],
@@ -506,20 +507,6 @@ class MultiClassEnvironmentHistory:
         cumulative_rewards = np.sum(cumulative_rewards, axis=0)
         cumulative_regrets = np.sum(cumulative_regrets, axis=0)
         return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
-
-    def get_raw_data(self):
-        # TODO: we should create a class that only contains the historic data and that is wrapped by the history classes
-        # actually the class must go to the context generation class with its own constructor
-        # instead of this method
-        # observe that instead of dividing the dataset we memorize which user profiles to consider in the split
-        return {
-            "profiles": set(self.env.user_profiles),
-            "bids": self.xs,
-            "prices": self.ps,
-            "clicks": self.ns,
-            "conversions": self.qs,
-            "costs": self.cs
-        }
 
     def clairvoyant_rewards(self, bids: np.ndarray, prices: np.ndarray, T: int):
         alphas = np.array([self.env.a[c](prices) for c in range(self.env.classes_count())])

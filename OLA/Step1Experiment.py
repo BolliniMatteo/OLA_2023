@@ -40,7 +40,7 @@ if __name__ == '__main__':
     prices = ep.get_prices()
     rng = np.random.default_rng(seed=seed)
     T = 365
-    n_runs = 10000
+    n_runs = 1000
     opt_rewards = SingleClassEnvironmentHistory(env_init_step1(rng)).clairvoyant_rewards(bids, prices, T)
     worst_arm_count_ucb = WorstArmCounter(prices[-1])
     sim_object_ucb1 = simulate_single_class(lambda: env_init_step1(rng),

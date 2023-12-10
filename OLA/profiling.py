@@ -9,7 +9,7 @@ import re
 import new_environment_properties as ep
 from OLA.base_learners import Step4TSContextGenLearner, Step4TSOneClassLearner, Step4TSRealClassesLearner, \
     Step4UCBContextGenLearner, Step4UCBOneClassLearner, Step4UCBRealClassesLearner
-from OLA.context_gen import ContextGeneration
+from OLA.context_gen import ActualContextGenerator
 from OLA.environments import MultiClassEnvironment, MultiClassEnvironmentHistory
 from OLA.simulators import simulate_multi_class, plot_multi_class_sim_result
 from OLA.test_learners import Step4ClairvoyantLearner
@@ -39,7 +39,7 @@ def gpucb_known_learner_init(env: MultiClassEnvironment, bids: np.ndarray, price
 def gpucb_unknown_learner_init(env: MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                                kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float,
                                burn_in: int, rng: np.random.Generator, bound_confidence: float):
-    context_gen = ContextGeneration(env, bids, prices, kernel, alpha, rng, beta, bound_confidence)
+    context_gen = ActualContextGenerator(env, bids, prices, kernel, alpha, rng, beta, bound_confidence)
     return Step4UCBContextGenLearner(env, bids, prices, kernel, alpha, beta, context_gen, burn_in)
 
 
@@ -57,7 +57,7 @@ def gpts_known_learner_init(env: MultiClassEnvironment, bids: np.ndarray, prices
 def gpts_unknown_learner_init(env: MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                               kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float,
                               rng: np.random.Generator, burn_in: int, bound_confidence: float):
-    context_gen = ContextGeneration(env, bids, prices, kernel, alpha, rng, beta, bound_confidence)
+    context_gen = ActualContextGenerator(env, bids, prices, kernel, alpha, rng, beta, bound_confidence)
     return Step4TSContextGenLearner(env, bids, prices, kernel, alpha, rng, context_gen, burn_in)
 
 

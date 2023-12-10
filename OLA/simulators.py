@@ -189,7 +189,7 @@ def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, a
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
     axes = axes.flatten()
     time_steps = [i for i in range(1, opt_rewards.shape[0] + 1)]
-    colors = ['b', 'r', 'c', 'm']
+    colors = ['blue', 'red', 'cyan', 'magenta', 'yellow', 'darkviolet', 'darkgray', 'brown', 'teal']
     for i in range(len(results)):
         axes[0].plot(time_steps, results[i].inst_rewards_mean, label=algorithms[i], color=colors[i])
         axes[1].plot(time_steps, results[i].inst_regrets_mean, label=algorithms[i], color=colors[i])
@@ -214,8 +214,8 @@ def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, a
             axes[3].plot(time_steps, results[i].cum_regrets_mean - results[i].cum_regrets_std,
                          linestyle='dashed', color=colors[i])
 
-    axes[0].plot(time_steps, opt_rewards, label='optimal', color='g')
-    axes[2].plot(time_steps, np.cumsum(opt_rewards), label='optimal', color='g')
+    axes[0].plot(time_steps, opt_rewards, label='optimal', color='green')
+    axes[2].plot(time_steps, np.cumsum(opt_rewards), label='optimal', color='green')
     axes[0].set_title('Instantaneous rewards')
     axes[1].set_title('Instantaneous regrets')
     axes[2].set_title('Cumulative reward')
