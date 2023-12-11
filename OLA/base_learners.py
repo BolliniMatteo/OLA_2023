@@ -476,8 +476,8 @@ class Step4TSFixedClassesLearner(MultiClassLearner):
         c_est = np.array([self.c_estimators[cl].provide_estimations() for cl in range(self.n_classes)])
 
         xs_t, xs_t_ind, ps_t, ps_t_ind = multi_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
-        results = self.play_and_save(self.class_map, xs_t, ps_t)
-        results = self.step_results_to_estimated_classes(results, self.class_map)
+        raw_results = self.play_and_save(self.class_map, xs_t, ps_t)
+        results = self.step_results_to_estimated_classes(raw_results, self.class_map)
         for cl in range(self.n_classes):
             n, q, c = results[cl]
             self.a_estimators[cl].update_estimations(ps_t_ind[cl], q, n)
@@ -585,7 +585,7 @@ class Step4UCBFixedClassesLearner(MultiClassLearner):
 
     def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                  kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, class_map: dict,
-                 ucb_constant: int = 1):
+                 ucb_constant: float = 1):
         super().__init__(environment, bids, prices)
         self.class_map = class_map
         self.n_classes = len(set(self.class_map.values()))
@@ -627,13 +627,13 @@ class Step4UCBRealClassesLearner(Step4UCBFixedClassesLearner):
     """
 
     def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float,ucb_constant: int = 1):
+                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, ucb_constant: float = 1):
         super().__init__(environment, bids, prices, kernel, alpha, beta, environment.class_map, ucb_constant)
 
 
 class Step4UCBOneClassLearner(Step4UCBFixedClassesLearner):
     def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, ucb_constant: int = 1):
+                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, ucb_constant: float = 1):
         super().__init__(environment, bids, prices, kernel, alpha, beta, {p: 0 for p in environment.user_profiles},
                          ucb_constant)
 

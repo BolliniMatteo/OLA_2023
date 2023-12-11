@@ -74,7 +74,7 @@ def multi_class_bid_opt(bids: np.ndarray, prices: np.ndarray, alphas: np.ndarray
     vs = (prices-prod_cost) * alphas
     # vs.shape = (n_classes,)
     # objs = estimated_clicks * vs.reshape((vs.shape[0], 1)).repeat(estimated_clicks.shape[1], axis=1) - estimated_costs
-    objs = estimated_clicks * vs[:, None]*estimated_clicks - estimated_costs
+    objs = estimated_clicks * vs[:, None] - estimated_costs
     # objs.shape=(n_classes,n_bids): for each class, for each bid x, we computed p*alpha*n(x)-c(x)
     best_bids_ind = np.argmax(objs, axis=1)
     best_bids = bids[best_bids_ind]
@@ -84,8 +84,20 @@ def multi_class_bid_opt(bids: np.ndarray, prices: np.ndarray, alphas: np.ndarray
 def multi_class_opt(bids: np.ndarray, prices: np.ndarray,
                     estimated_alphas: np.ndarray, estimated_clicks: np.ndarray, estimated_costs: np.ndarray,
                     prod_cost: float):
+    """
+    :param bids: the available bids
+    :param prices: an array with the available prices
+    :param estimated_alphas: a matrix where row c contains the alpha values estimated for class c
+    shape = (n_classes, n_prices)
+    :param estimated_clicks: a matrix where row c contains the estimated number of clicks estimated for class c,
+    shape=(n_classes,n_bids)
+    :param estimated_costs: a matrix where row c contains the estimated advertising costs estimated for class c,
+    shape=(n_classes,n_bids)
+    :param prod_cost: the production cost of a single item
+    :return: (bids, bids_ind, prices, prices_ind) all array, one element for class
+    """
     best_ps, best_ps_ind = multi_class_price_opt(prices, estimated_alphas, prod_cost)
-    best_bids, best_bids_ind = multi_class_bid_opt(bids, best_ps,
-                                                   estimated_alphas[np.arange(estimated_alphas.shape[0]), best_ps_ind],
+    best_alphas = np.array([estimated_alphas[c, best_ps_ind[c]] for c in range(estimated_alphas.shape[0])])
+    best_bids, best_bids_ind = multi_class_bid_opt(bids, best_ps, best_alphas,
                                                    estimated_clicks, estimated_costs, prod_cost)
     return best_bids, best_bids_ind, best_ps, best_ps_ind

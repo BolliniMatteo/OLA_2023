@@ -26,26 +26,28 @@ for c in range(3):
     axes[0, c].set_title("Class " + str(c) + " price analysis")
 
     rewards = best_value * ep.daily_clicks_curve_multiclass(xs, c) - ep.click_cumulative_cost_multiclass(xs, c)
+    best_bid = xs[np.argmax(rewards)]
     axes[1, c].plot(xs, rewards)
-    axes[1, c].scatter(xs[np.argmax(rewards)], np.max(rewards), color='r')
+    axes[1, c].scatter(best_bid, np.max(rewards), color='r')
     axes[1, c].set_title("Class " + str(c) + " bid analysis")
     best_rewards.append(np.max(rewards))
 
-# Now I ask what is the regret when I use the optimum of the first class for the other ones?
+# Now I ask what is the regret when I merge the three classes in a single context?
+# I can sum costs and clicks, but what about the conversion rate?
+# It depends on how many users are of a class and how many of another, but that depends on the bid...
 
-# best for class 0, not for the others
-best_bid, _, best_price, _ = op.single_class_opt(xs, ps,
-                                                 ep.click_conversion_rate_multiclass(ps, 0),
-                                                 ep.daily_clicks_curve_multiclass(xs, 0),
-                                                 ep.click_cumulative_cost_multiclass(xs, 0),
-                                                 prod_cost)
-for c in range(3):
-    reward = SingleClassEnvironmentHistory.reward(best_price,
-                                                  ep.click_conversion_rate_multiclass(best_price, c),
-                                                  ep.daily_clicks_curve_multiclass(best_bid, c),
-                                                  ep.click_cumulative_cost_multiclass(best_bid, c),
-                                                  prod_cost)
-    regret = best_rewards[c] - reward
-    print("Regret class {} when using the optimum of class 0: {}".format(c, regret))
+# Well, let's optimize by brute force
+rewards = np.zeros((xs.shape[0], ps.shape[0]))
+for i in range(xs.shape[0]):
+    for j in range(ps.shape[0]):
+        x = xs[i]
+        p = ps[j]
+        for cl in range(3):
+            rewards[i, j] += SingleClassEnvironmentHistory.reward(p, ep.click_conversion_rate_multiclass(p, cl),
+                                                                  ep.daily_clicks_curve_multiclass(x, cl),
+                                                                  ep.click_cumulative_cost_multiclass(x, cl),
+                                                                  ep.get_production_cost())
+# That's the optimal reward when you play the same price and bid for every class
+print("Optimal reward when mixing classes:", np.max(rewards))
 
 plt.show()

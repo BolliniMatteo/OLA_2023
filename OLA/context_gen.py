@@ -21,16 +21,9 @@ class ContextData:
 
 
 def get_data_from_history(history: MultiClassEnvironmentHistory):
-    # return {
-    #     "profiles": set(self.env.user_profiles),
-    #     "bids": self.xs,
-    #     "prices": self.ps,
-    #     "clicks": self.ns,
-    #     "conversions": self.qs,
-    #     "costs": self.cs
-    # }
     return ContextData(set(history.env.user_profiles), history.xs, history.ps, history.ns,
                        history.qs, history.cs, history.env.prod_cost)
+
 
 def copy_data(data: ContextData):
     return ContextData(data.profiles, data.bids, data.prices,
@@ -95,7 +88,10 @@ class ContextGenerator:
                 price_index = np.argmax(self.prices == price)
                 convs[price_index] += data.conversions[profile][t]
                 clicks_for_price[price_index] += data.clicks[profile][t]
-        alphas_lower_bounds = self.bound(convs / clicks_for_price, clicks_for_price)
+        alphas_lower_bounds = np.zeros(self.prices.shape)
+        mask = clicks_for_price > 0
+        # set to the 0 where we don't have data (it can happen with low probability with TS)
+        alphas_lower_bounds[mask] = self.bound(convs[mask] / clicks_for_price[mask], clicks_for_price[mask])
 
         # these are the curves estimated by the gps
         clicks_lower_bounds = np.zeros(self.bids.shape)
@@ -113,11 +109,17 @@ class ContextGenerator:
 
     def evaluate_feature(self, data: ContextData, feature: int, click_estimators: dict, cost_estimators: dict):
         data_f0, data_f1 = split_data(data, feature)
-        tot_users = get_n_users(data)
-        p_f0 = self.bound(get_n_users(data_f0) / tot_users, tot_users)
-        p_f1 = self.bound(get_n_users(data_f1) / tot_users, tot_users)
-        return (p_f0 * self.evaluate_data(data_f0, click_estimators, cost_estimators)
-                + p_f1 * self.evaluate_data(data_f1, click_estimators, cost_estimators))
+        # I don't need the probability of the feature that there are in the slides
+        # They are "embedded" in the number of clicks used by the reward
+        # Indeed observe that we can't compute it: we don't know which uses looked at the ads,
+        # only those who clicked, that depend on the bid.
+        # In other words the slides use the lower bound on the reward for a single user with that feature
+        # weighted by the probability of that feature.
+        # We instead use the total reward for from all the user with that feature that will click
+        # because the number of users that click is not fixed, and we don't know the ones that don't click
+
+        return (self.evaluate_data(data_f0, click_estimators, cost_estimators)
+                + self.evaluate_data(data_f1, click_estimators, cost_estimators))
 
     def decide_split(self, data: ContextData, features: list, click_estimators: dict, cost_estimators: dict):
         no_split_value = self.evaluate_data(data, click_estimators, cost_estimators)

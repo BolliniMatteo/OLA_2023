@@ -323,17 +323,21 @@ class MultiClassEnvironment:
     """
 
     def __init__(self, n_features: int, class_map: dict, user_prob_map: dict,
-                 n: list, en: Callable, c: list, ec: Callable, a: list,
+                 n: Callable[[Union[float, np.ndarray], int], Union[int, np.ndarray]],
+                 en: Callable[[], float],
+                 c: Callable[[Union[float, np.ndarray], int], Union[float, np.ndarray]],
+                 ec: Callable[[], float],
+                 a: Callable[[Union[float, np.ndarray], int], Union[float, np.ndarray]],
                  prod_cost: float, rng: np.random.Generator):
         """
         :param n_features: the number of features
         :param class_map: a mapping user_type->class (tuple->int), classes are from 0 to len(n)=len(c)=len(a)
         :param user_prob_map: a mapping user_type->probability
-        :param n: a list of functions for the number of clicks (one for class)
+        :param n: a function n(bid,class) -> number of clicks
         :param en: the noise for the number of clicks
-        :param c: a list of functions for the advertising costs
+        :param c: a function c(bid,class) -> cumulative daily advertising cost
         :param ec: the noise for the advertising costs
-        :param a: a list of functions for the conversion rates
+        :param a: a function c(price,class) -> conversion rate
         :param prod_cost: the production cost for a single item
         :param rng: a numpy random number generator that will be used by this object
         """
@@ -364,14 +368,14 @@ class MultiClassEnvironment:
             price = prices[user_prof]
             user_class = self.class_map[user_prof]
             user_prob = self.user_prob_map[user_prof]
-            n = (self.n[user_class](bid) + self.en()[0]) * user_prob
+            n = (self.n(bid, user_class) + self.en()) * user_prob
             n = int(n)
             # there is the possibility that the noise reduces n below 1
             if n < 1:
                 n = 1
-            samples = self.rng.binomial(n=1, p=self.a[user_class](price), size=n)
+            samples = self.rng.binomial(n=1, p=self.a(price, user_class), size=n)
             q = np.sum(samples)
-            c = (self.c[user_class](bid) + self.ec()[0]) * user_prob
+            c = (self.c(bid, user_class) + self.ec()) * user_prob
             # again due to the noise, we want to avoid negative values
             if c < 0.1:
                 c = 0.1
@@ -379,7 +383,7 @@ class MultiClassEnvironment:
         return result
 
     def classes_count(self):
-        return len(self.n)
+        return len(set(self.class_map.values()))
 
 
 class MultiClassEnvironmentHistory:
@@ -439,29 +443,33 @@ class MultiClassEnvironmentHistory:
         cumulative_rewards = {}
         cumulative_regrets = {}
 
-        alphas = np.array([self.env.a[c](prices) for c in range(self.env.classes_count())])
-        ns = np.array([self.env.n[c](bids) for c in range(self.env.classes_count())])
-        cs = np.array([self.env.c[c](bids) for c in range(self.env.classes_count())])
-        best_bids, _, best_prices, _ = opt.multi_class_opt(bids, prices, alphas, ns, cs, self.env.prod_cost)
+        alphas = np.array([self.env.a(prices, c) for c in range(self.env.classes_count())])
+        ns = np.array([self.env.n(bids, c) for c in range(self.env.classes_count())])
+        cs = np.array([self.env.c(bids, c) for c in range(self.env.classes_count())])
+        bests = opt.multi_class_opt(bids, prices, alphas, ns, cs, self.env.prod_cost)
+        best_bids, best_bids_ind, best_prices, best_prices_ind = bests
 
         for user_profile in self.env.user_profiles:
             class_index = self.env.class_map[user_profile]
             user_profile_probability = self.env.user_prob_map[user_profile]
-            n_per_user_profile = lambda bid: self.env.n[class_index](bid) * user_profile_probability
-            # TODO: this is probably wrong: why is n the only thing to be scaled by user_profile_probability?
-            res_tuple = SingleClassHistory.compute_reward_stats(np.array(self.xs[user_profile]),
-                                                                np.array(self.ps[user_profile]),
-                                                                self.env.a[class_index],
-                                                                n_per_user_profile,
-                                                                self.env.c[class_index],
-                                                                self.env.prod_cost,
-                                                                best_bids[class_index],
-                                                                best_prices[class_index])
-            rewards, regrets, cum_rewards, cum_regrets = res_tuple
-            instantaneous_rewards[user_profile] = rewards
-            instantaneous_regrets[user_profile] = regrets
-            cumulative_rewards[user_profile] = cum_rewards
-            cumulative_regrets[user_profile] = cum_regrets
+            ps = np.array(self.ps[user_profile])
+            xs = np.array(self.xs[user_profile])
+            instantaneous_rewards[user_profile] = SingleClassHistory.reward(ps, self.env.a(ps, class_index),
+                                                                            self.env.n(xs, class_index),
+                                                                            self.env.c(xs, class_index),
+                                                                            self.env.prod_cost)
+            instantaneous_rewards[user_profile] = instantaneous_rewards[user_profile] * user_profile_probability
+
+            best_reward = SingleClassHistory.reward(best_prices[class_index],
+                                                    self.env.a(best_prices[class_index], class_index),
+                                                    self.env.n(best_bids[class_index], class_index),
+                                                    self.env.c(best_bids[class_index], class_index),
+                                                    self.env.prod_cost) * user_profile_probability
+
+            instantaneous_regrets[user_profile] = best_reward - instantaneous_rewards[user_profile]
+
+            cumulative_rewards[user_profile] = np.cumsum(instantaneous_rewards[user_profile])
+            cumulative_regrets[user_profile] = np.cumsum(instantaneous_regrets[user_profile])
         return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
 
     def stats_for_class(self, bids: np.ndarray, prices: np.ndarray):
@@ -475,31 +483,34 @@ class MultiClassEnvironmentHistory:
         # basically instantaneous_rewards[c,t]= reward at time t from users of class c
         instantaneous_rewards = np.zeros(shape=(len(set(self.env.class_map.values())), self.played_rounds()))
         instantaneous_regrets = np.zeros(shape=(len(set(self.env.class_map.values())), self.played_rounds()))
-        cumulative_rewards = np.zeros(shape=(len(set(self.env.class_map.values())), self.played_rounds()))
-        cumulative_regrets = np.zeros(shape=(len(set(self.env.class_map.values())), self.played_rounds()))
 
-        # data for single user profiles
-        rewards, regrets, cum_rewards, cum_regrets = self.stats_for_user_profile(bids, prices)
+        # instantaneous rewards for single user profiles
+        # I don't use the other data, but I recompute the optimal rewards:
+        # it's probably more numerically stable
+        rewards, _, _, _ = self.stats_for_user_profile(bids, prices)
 
         # put things together according to the class
         for user_profile in self.env.user_profiles:
             c = self.env.class_map[user_profile]
             instantaneous_rewards[c, :] = instantaneous_rewards[c, :] + rewards[user_profile]
-            instantaneous_regrets[c, :] = instantaneous_regrets[c, :] + regrets[user_profile]
-            cumulative_rewards[c, :] = cumulative_rewards[c, :] + cum_rewards[user_profile]
-            cumulative_regrets[c, :] = cumulative_regrets[c, :] + cum_regrets[user_profile]
+
+        opt_rewards = self._class_optimal_rewards(bids, prices)
+
+        # compute the regrets
+        for cl in range(self.env.classes_count()):
+            instantaneous_regrets[cl, :] = opt_rewards[cl] - instantaneous_rewards[cl, :]
+
+        cumulative_rewards = np.cumsum(instantaneous_rewards, axis=1)
+        cumulative_regrets = np.cumsum(instantaneous_regrets, axis=1)
         return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
 
     def stats_total(self, bids: np.ndarray, prices: np.ndarray):
         """
-
         :param bids: the available bids
         :param prices: the available prices
         :return: instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
         for each time step, the total (i.e. considering all the classes) values
         """
-        # This implementation doesn't work as expected... maybe now it's fixed
-        # TODO: So is it fixed or not?
         instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets = self.stats_for_class(
             bids, prices)
         instantaneous_rewards = np.sum(instantaneous_rewards, axis=0)
@@ -508,21 +519,25 @@ class MultiClassEnvironmentHistory:
         cumulative_regrets = np.sum(cumulative_regrets, axis=0)
         return instantaneous_rewards, instantaneous_regrets, cumulative_rewards, cumulative_regrets
 
-    def clairvoyant_rewards(self, bids: np.ndarray, prices: np.ndarray, T: int):
-        alphas = np.array([self.env.a[c](prices) for c in range(self.env.classes_count())])
-        ns = np.array([self.env.n[c](bids) for c in range(self.env.classes_count())])
-        cs = np.array([self.env.c[c](bids) for c in range(self.env.classes_count())])
+    def _class_optimal_rewards(self, bids, prices):
+        alphas = np.array([self.env.a(prices, c) for c in range(self.env.classes_count())])
+        ns = np.array([self.env.n(bids, c) for c in range(self.env.classes_count())])
+        cs = np.array([self.env.c(bids, c) for c in range(self.env.classes_count())])
         best_bids, _, best_prices, _ = opt.multi_class_opt(bids, prices, alphas, ns, cs, self.env.prod_cost)
 
-        opt_reward = 0
+        opt_rewards = np.zeros(self.env.classes_count())
         for cl in range(self.env.classes_count()):
             r = SingleClassHistory.reward(
                 best_prices[cl],
-                self.env.a[cl](best_prices[cl]),
-                self.env.n[cl](best_bids[cl]),
-                self.env.c[cl](best_bids[cl]),
+                self.env.a(best_prices[cl], cl),
+                self.env.n(best_bids[cl], cl),
+                self.env.c(best_bids[cl], cl),
                 self.env.prod_cost
             )
-            opt_reward += r
+            opt_rewards[cl] = r
+        return opt_rewards
 
+    def clairvoyant_rewards(self, bids: np.ndarray, prices: np.ndarray, T: int):
+        opt_rewards = self._class_optimal_rewards(bids, prices)
+        opt_reward = np.sum(opt_rewards)
         return np.full(T, opt_reward)
