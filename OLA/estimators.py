@@ -160,7 +160,7 @@ class BaseGPEstimator:
         self.mu_vector = np.reshape(self.mu_vector, self.arms.shape)
         self.sigma_vector = np.reshape(self.sigma_vector, self.arms.shape)
 
-    def update_model(self, played_arms: Union[int, list], rewards: Union[float, list]):
+    def update_model(self, played_arms: Union[int, list, np.ndarray], rewards: Union[float, list, np.ndarray]):
         """
         Updates the internal attributes for the estimations
         :param played_arms: the arm(s) that have been played
@@ -171,6 +171,9 @@ class BaseGPEstimator:
         if isinstance(played_arms, list):
             self.played_arms += list(played_arms)
             self.rewards += list(rewards)
+        elif isinstance(played_arms, np.ndarray):
+            self.played_arms += played_arms.tolist()
+            self.rewards += rewards.tolist()
         else:
             self.played_arms.append(played_arms)
             self.rewards.append(rewards)

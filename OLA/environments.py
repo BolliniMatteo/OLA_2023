@@ -380,6 +380,10 @@ class MultiClassEnvironment:
             if c < 0.1:
                 c = 0.1
             result[user_prof] = (n, q, c)
+            # TODO: remove these debug lines
+            debug_1 = self.c(bid, user_class)
+            debug_2 = self.ec()
+            debug_3 = (debug_1 + debug_2) * user_prob
         return result
 
     def classes_count(self):
