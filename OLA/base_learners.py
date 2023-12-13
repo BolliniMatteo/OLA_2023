@@ -1,13 +1,10 @@
-import numpy as np
 import sklearn
 from abc import ABC, abstractmethod
 
 import environments as envs
 import estimators as est
 from OLA.optimization_utilities import *
-from context_gen import ContextGenerator, get_data_from_history
 from environments import SingleClassEnvironmentHistory
-from environments import MultiClassEnvironmentHistory
 
 """
 The actual learners for the various step and the optimization functions that they use
@@ -225,11 +222,10 @@ class Step5UCBLearner(SingleClassLearnerNonStationary):
 class Step5UCBChangeDetectorLearner(SingleClassLearnerNonStationary):
     def __init__(self, environment: envs.SingleClassEnvironmentNonStationary,
                  bids: np.ndarray, prices: np.ndarray, c: float, burn_in_steps: int,
-                 epsilon=0.05, max_num_changes=5,
+                 epsilon=0.05, max_num_changes=2,
                  time_horizon=365):
         super().__init__(environment, bids, prices)
-        # self.h = np.log(time_horizon / max_num_changes)
-        self.h = 0.3
+        self.h = np.log(time_horizon / max_num_changes)
         self.c = c
         self.epsilon = epsilon
         self.cur_rand_walk_upper = 0
@@ -247,18 +243,15 @@ class Step5UCBChangeDetectorLearner(SingleClassLearnerNonStationary):
         c_est = self.env.C(self.xs)
         # we first wait for the burn-in-phase to finish (we have a new burn-in every time there's a change)
         if self.rounds_since_last_detection < self.burn_in_steps:
-            if self.rounds_since_last_detection < self.ps.shape[0]:
+            if self.rounds_since_last_detection >= self.ps.shape[0]:
                 p_t = self.ps[self.rounds_since_last_detection]
-                p_t_ind = self.rounds_since_last_detection
                 alpha = 0.5
                 x_t, x_t_ind = single_class_bid_opt(self.xs, p_t, alpha, n_est, c_est, self.env.prod_cost)
             else:
-                # play normally
                 alphas_est = self.estimator.provide_estimations(lower_bound=False)
                 x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est,
                                                               self.env.prod_cost)
-            n, q, c = self.play_and_save(x_t, p_t)
-            self.estimator.update_estimations(p_t_ind, q, n)
+            self.play_and_save(x_t, p_t)
             # If we end the burn-in then we set everything up for the next round,
             # where the actual change detection starts
             if self.rounds_since_last_detection == (self.burn_in_steps - 1):
@@ -268,53 +261,30 @@ class Step5UCBChangeDetectorLearner(SingleClassLearnerNonStationary):
                 self.mu_0 = np.mean(estimates)
                 step_upper = estimates[-1] - self.mu_0 - self.epsilon
                 step_lower = self.mu_0 - estimates[-1] - self.epsilon
-                # print('here we are')
-                # print('self.mu0 = {}'.format(self.mu_0))
-                # print('step_upper = {}'.format(step_upper))
-                # print('step_lower = {}'.format(step_lower))
-                self.cur_rand_walk_lower = np.max([0, self.cur_rand_walk_lower + step_lower])
-                self.cur_rand_walk_upper = np.max([0, self.cur_rand_walk_upper + step_upper])
+                self.cur_rand_walk_lower = np.max(0, self.cur_rand_walk_lower + step_upper)
+                self.cur_rand_walk_lower = np.max(0, self.cur_rand_walk_upper + step_lower)
 
         else:
             # play normally
             alphas_est = self.estimator.provide_estimations(lower_bound=False)
             x_t, x_t_ind, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est,
                                                           self.env.prod_cost)
-            n, q, c = self.play_and_save(x_t, p_t)
-            self.estimator.update_estimations(p_t_ind, q, n)
+            self.play_and_save(x_t, p_t)
             # calculate steps
             last_reward = self.history.bernoulli_estimates()[-1]
             step_upper = last_reward - self.mu_0 - self.epsilon
             step_lower = self.mu_0 - last_reward - self.epsilon
             # update bounds
-            self.cur_rand_walk_lower = np.max([0, self.cur_rand_walk_lower + step_lower])
-            self.cur_rand_walk_upper = np.max([0, self.cur_rand_walk_upper + step_upper])
+            self.cur_rand_walk_lower = np.max(0, self.cur_rand_walk_lower + step_upper)
+            self.cur_rand_walk_lower = np.max(0, self.cur_rand_walk_upper + step_lower)
             # see if we identify a change after update (could be a false alarm...)
-            # print('lower bound walk = {}'.format(self.cur_rand_walk_lower))
-            # print('upper ')
             if self.cur_rand_walk_lower > self.h or self.cur_rand_walk_upper > self.h:
-                # change detected
-                # print('CHANGE DETECTED')
+                # change detectedS
                 self.rounds_since_last_detection = -1
                 # clear previous estimates
                 self.estimator.reset_estimates()
         self.rounds_since_last_detection += 1
 
-
-class Step6EXP3Learner(SingleClassLearnerNonStationary):
-    def __init__(self, environment: envs.SingleClassEnvironmentNonStationary, bids: np.ndarray, prices: np.ndarray):
-        super().__init__(environment, bids, prices)
-        self.estimator = est.BeExp3Estimator(prices)
-
-    def play_round(self):
-        if self.history.played_rounds() < self.ps.shape[0]:
-            p_t = self.prices[self.history.played_rounds()]
-            p_t_ind = self.history.played_rounds()
-        else:
-            p_t, p_t_ind = self.estimator.provide_arm()
-
-        n, q, c = self.play_and_save(p_t)
-        self.estimator.update_estimations(p_t_ind, q / n)
 
 class Step5UCBWINLearner(SingleClassLearnerNonStationary):
     def __init__(self, environment: envs.SingleClassEnvironmentNonStationary,
@@ -323,334 +293,31 @@ class Step5UCBWINLearner(SingleClassLearnerNonStationary):
         super().__init__(environment, bids, prices)
         self.win_size = win_size
         self.c = c
-        self.estimator = est.BeUCB1SWEstimator(self.ps.shape[0], self.win_size, self.c)
 
     def play_round(self):
         n_est = self.env.N(self.xs)
         c_est = self.env.C(self.xs)
+        t = self.history.played_rounds()
         # first round is t=0
+        estimator = est.BeUCB1Estimator(self.ps.shape[0], self.c)
         # remember that t is excluded in the range()
-        non_pulled_arms = self.estimator.get_non_pulled_arms()
+        for i in range(max(0, t - self.win_size), t):
+            p_ind = np.where(self.ps == self.history.ps[i])[0][0]
+            estimator.update_estimations(p_ind, self.history.qs[i], self.history.ns[i])
+        non_pulled_arms = estimator.get_non_pulled_arms()
         if non_pulled_arms.shape[0] != 0:
             p_t_ind = non_pulled_arms[0]
             p_t = self.ps[p_t_ind]
-            x_t, _ = single_class_bid_opt(self.xs, p_t, 0.5, n_est, c_est, self.env.prod_cost)
+            # we have no data in our window
+            # but if we don't find the arm in our window, then it wasn't a good arm in the last win_size days
+            # we can assume that it has a not so large alpha value whn choosing the bid
+            # this collects fewer samples for it, but avoid losing much reward
+            # (with a large estimated alpha we tend to a larger bid, but we can get a negative reward
+            # if we have many clicks and relative cost to pay, but few conversions to profit)
+            x_t, _ = single_class_bid_opt(self.xs, p_t, 0.4, n_est, c_est, self.env.prod_cost)
         else:
-            alphas_est = self.estimator.provide_estimations()
-            x_t, _, p_t, p_t_ind = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
-        n, q, c = self.play_and_save(x_t, p_t)
-        self.estimator.update_estimations(p_t_ind, q, n)
+            alphas_est = estimator.provide_estimations(lower_bound=False)
+            x_t, _, p_t, _ = single_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
+        self.play_and_save(x_t, p_t)
 
 
-class MultiClassLearner(ABC):
-    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray):
-        self.env = environment
-        self.ps = prices
-        self.xs = bids
-        self.history = MultiClassEnvironmentHistory(self.env)
-
-    def play_and_save_raw(self, bids, prices):
-        """
-        :param bids: a mapping user_profile->bid
-        :param prices: a mapping user_profile->price
-        :return: a mapping user_profile->(n,q,c)
-        n: int - the number of clicks for that user profile
-        q: int - the number of conversions for that user profile
-        c: float - the advertising costs for that user profile
-        """
-        results = self.env.perform_day(bids, prices)
-        self.history.add_step(bids, prices, results)
-        return results
-
-    def play_and_save(self, class_map: dict, bids: np.ndarray, prices: np.ndarray):
-        """
-        A "better" play_and_save that takes the estimated classes and the optimized inputs for them,
-        produces the "raw" inputs for the environment and plays.
-        Results are divided by user type and not estimated classes,
-        so that your estimation of the classes can be refined
-        :param class_map: a mapping user_type->estimated_class (tuple->int),
-        estimated classes are from 0 to bids.shape[0]=prices.shape[0]
-        :param bids: an array with the bid for each estimated class
-        :param prices: an array with the price for eacc estimated class
-        :return: a mapping user_profile->(n,q,c)
-        n: int - the number of clicks for that user profile
-        q: int - the number of conversions for that user profile
-        c: float - the advertising costs for that user profile
-        """
-        bids_dict = {user_profile: bids[class_map[user_profile]] for user_profile in self.env.user_profiles}
-        prices_dict = {user_profile: prices[class_map[user_profile]] for user_profile in self.env.user_profiles}
-        return self.play_and_save_raw(bids_dict, prices_dict)
-
-    def step_results_to_estimated_classes(self, step_results: dict, class_map: dict):
-        """
-        Converts the results of play_and_save to the estimated classes.
-        Useful during rounds where you don't change the current estimation of the classes
-        :param step_results: results from play_and_save
-        :param class_map: class_map: a mapping user_type->estimated_class (tuple->int)
-        :return: a list [(n,q,c) for class in range(n_estimated_classes)]
-        n: int - the number of clicks for that class
-        q: int - the number of conversions for that class
-        c: float - the advertising costs for that class
-        """
-        n_classes = max(class_map.values()) + 1
-        results = [(0, 0, 0) for _ in range(n_classes)]
-        for user_profile in self.env.user_profiles:
-            old_n, old_q, old_c = results[class_map[user_profile]]
-            n, q, c = step_results[user_profile]
-            n = old_n + n
-            q = old_q + q
-            c = old_c + c
-            results[class_map[user_profile]] = (n, q, c)
-        return results
-
-    @abstractmethod
-    def play_round(self):
-        pass
-
-
-class Step4TSContextGenLearner(MultiClassLearner):
-    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, rng: np.random.Generator,
-                 context_gen: ContextGenerator, burn_in: int):
-        super().__init__(environment, bids, prices)
-        self.kernel = kernel
-        self.alpha = alpha
-        self.rng = rng
-        self.context_gen = context_gen
-        self.burn_in = burn_in
-        self.class_map = {p: 0 for p in self.env.user_profiles}
-        n_classes = len(set(self.class_map.values()))
-        self.a_estimators = [est.BeTSEstimator(self.ps.shape[0], self.rng) for _ in range(n_classes)]
-        self.n_estimators = {profile: est.GPTSEstimator(bids, kernel, alpha, rng) for profile in self.env.user_profiles}
-        self.c_estimators = {profile: est.GPTSEstimator(bids, kernel, alpha, rng) for profile in self.env.user_profiles}
-        # the Be estimators is one for class.
-        # the GPs instead are one for user profile.
-        # If I played different bids at a certain round, when the user profiles are merged in a single context
-        # I don't have a single sample for that round
-        # So I use one estimator for profile, then I sum the estimations for profiles of the same context
-
-    def play_round(self):
-        played_rounds = self.history.played_rounds()
-        if played_rounds > self.burn_in and played_rounds % 14 == 13:
-            self._update_context()
-
-        alphas_est, n_est, c_est = self._get_estimations()
-
-        xs_t, xs_t_ind, ps_t, ps_t_ind = multi_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
-        results = self.play_and_save(self.class_map, xs_t, ps_t)
-        self._update_estimations(xs_t, ps_t_ind, results)
-
-    def _update_context(self):
-        data = get_data_from_history(self.history)
-        n_classes, self.class_map = self.context_gen.generate(data, list(range(self.env.n_features)),
-                                                              self.n_estimators, self.c_estimators)
-        self.a_estimators = [est.BeTSEstimator(self.ps.shape[0], self.rng) for _ in range(n_classes)]
-        # Initialize the Be estimator
-        for t in range(self.history.played_rounds()):
-            for profile in self.env.user_profiles:
-                cl = self.class_map[profile]
-                self.a_estimators[cl].update_estimations(
-                    list(self.ps).index(data.prices[profile][t]),
-                    data.conversions[profile][t], data.clicks[profile][t]
-                )
-
-    def _get_estimations(self):
-        n_classes = len(set(self.class_map.values()))
-        alphas_est = np.array([self.a_estimators[cl].provide_estimations() for cl in range(n_classes)])
-
-        n_est = np.zeros((n_classes, self.xs.shape[0]))
-        c_est = np.zeros((n_classes, self.xs.shape[0]))
-        for profile in self.env.user_profiles:
-            n_est += self.n_estimators[profile].provide_estimations()
-            c_est += self.c_estimators[profile].provide_estimations()
-        return alphas_est, n_est, c_est
-
-    def _update_estimations(self, played_bids: np.ndarray, played_price_indices: np.ndarray, results: dict):
-        for profile in self.env.user_profiles:
-            n, q, c = results[profile]
-            cl = self.class_map[profile]
-            self.a_estimators[cl].update_estimations(
-                played_price_indices[cl], q, n)
-            self.n_estimators[profile].update_model(played_bids[cl], n)
-            self.c_estimators[profile].update_model(played_bids[cl], c)
-
-
-class Step4TSFixedClassesLearner(MultiClassLearner):
-
-    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, rng: np.random.Generator,
-                 class_map: dict):
-        super().__init__(environment, bids, prices)
-        self.rng = rng
-        self.class_map = class_map
-        self.n_classes = len(set(self.class_map.values()))
-        self.a_estimators = [est.BeTSEstimator(self.ps.shape[0], self.rng) for _ in range(self.n_classes)]
-        self.n_estimators = [est.GPTSEstimator(bids, kernel, alpha, rng) for _ in range(self.n_classes)]
-        self.c_estimators = [est.GPTSEstimator(bids, kernel, alpha, rng) for _ in range(self.n_classes)]
-
-    def play_round(self):
-        alphas_est = np.array([self.a_estimators[cl].provide_estimations() for cl in range(self.n_classes)])
-        n_est = np.array([self.n_estimators[cl].provide_estimations() for cl in range(self.n_classes)])
-        c_est = np.array([self.c_estimators[cl].provide_estimations() for cl in range(self.n_classes)])
-
-        xs_t, xs_t_ind, ps_t, ps_t_ind = multi_class_opt(self.xs, self.ps, alphas_est, n_est, c_est, self.env.prod_cost)
-        raw_results = self.play_and_save(self.class_map, xs_t, ps_t)
-        results = self.step_results_to_estimated_classes(raw_results, self.class_map)
-        for cl in range(self.n_classes):
-            n, q, c = results[cl]
-            self.a_estimators[cl].update_estimations(ps_t_ind[cl], q, n)
-            self.n_estimators[cl].update_model(xs_t[cl], n)
-            self.c_estimators[cl].update_model(xs_t[cl], c)
-
-
-class Step4TSRealClassesLearner(Step4TSFixedClassesLearner):
-    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, rng: np.random.Generator):
-        super().__init__(environment, bids, prices, kernel, alpha, rng, environment.class_map)
-
-
-class Step4TSOneClassLearner(Step4TSFixedClassesLearner):
-    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, rng: np.random.Generator):
-        super().__init__(environment, bids, prices, kernel, alpha, rng, {p: 0 for p in environment.user_profiles})
-
-
-class Step4UCBContextGenLearner(MultiClassLearner):
-    """
-    A multi-class learner that uses a context gen to determine the contex each week
-    after an initial "burn in" period.
-    UCB estimators are used.
-    """
-
-    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float,
-                 context_gen: ContextGenerator, burn_in: int, ucb_constant=1):
-        super().__init__(environment, bids, prices)
-        self.kernel = kernel
-        self.alpha = alpha
-        self.beta = beta
-        self.context_gen = context_gen
-        self.burn_in = burn_in
-        self.ucb_constant = ucb_constant
-        self.class_map = {p: 0 for p in self.env.user_profiles}
-        n_classes = len(set(self.class_map.values()))
-        self.a_estimators = [est.BeUCB1Estimator(prices.shape[0], ucb_constant) for _ in range(n_classes)]
-        self.n_estimators = {profile: est.GPUCBEstimator(bids, kernel, alpha, beta) for profile in
-                             self.env.user_profiles}
-        self.c_estimators = {profile: est.GPUCBEstimator(bids, kernel, alpha, beta) for profile in
-                             self.env.user_profiles}
-
-    def play_round(self):
-        played_rounds = self.history.played_rounds()
-        if played_rounds >= self.burn_in and played_rounds % 14 == 13:
-            self._update_context()
-
-        n_classes = len(set(self.class_map.values()))
-
-        alphas = np.zeros(n_classes)
-        ps_t = np.zeros(n_classes)
-        ps_t_ind = np.zeros(n_classes, dtype=int)
-
-        for cl in range(n_classes):
-            if self.a_estimators[cl].get_non_pulled_arms().shape[0] == 0:
-                alphas_est = self.a_estimators[cl].provide_estimations()
-                ps_t[cl], ps_t_ind[cl] = single_class_price_opt(self.ps, alphas_est, self.env.prod_cost)
-                alphas[cl] = alphas_est[ps_t_ind[cl]]
-            else:
-                ps_t_ind[cl] = self.a_estimators[cl].get_non_pulled_arms()[0]
-                ps_t[cl] = self.ps[ps_t_ind[cl]]
-                alphas[cl] = 0.3
-
-        n_est, c_est = self._get_estimations()
-        xs_t, xs_t_ind = multi_class_bid_opt(self.xs, ps_t, alphas, n_est, c_est, self.env.prod_cost)
-        results = self.play_and_save(self.class_map, xs_t, ps_t)
-        self._update_estimations(xs_t, ps_t_ind, results)
-
-    def _update_context(self):
-        data = get_data_from_history(self.history)
-        n_classes, self.class_map = self.context_gen.generate(data, list(range(self.env.n_features)),
-                                                              self.n_estimators, self.c_estimators)
-        self.a_estimators = [est.BeUCB1Estimator(self.ps.shape[0], self.ucb_constant) for _ in range(n_classes)]
-        # Initialize the Be estimators
-        for t in range(self.history.played_rounds()):
-            for profile in self.env.user_profiles:
-                cl = self.class_map[profile]
-                self.a_estimators[cl].update_estimations(
-                    list(self.ps).index(data.prices[profile][t]),
-                    data.conversions[profile][t], data.clicks[profile][t]
-                )
-
-    def _get_estimations(self):
-        n_classes = len(set(self.class_map.values()))
-        n_est = np.zeros((n_classes, self.xs.shape[0]))
-        c_est = np.zeros((n_classes, self.xs.shape[0]))
-        for profile in self.env.user_profiles:
-            n_est += self.n_estimators[profile].provide_estimations(lower_bound=False)
-            c_est += self.c_estimators[profile].provide_estimations(lower_bound=True)
-        return n_est, c_est
-
-    def _update_estimations(self, played_bids: np.ndarray, played_price_indices: np.ndarray, results: dict):
-        for profile in self.env.user_profiles:
-            n, q, c = results[profile]
-            cl = self.class_map[profile]
-            self.a_estimators[cl].update_estimations(
-                played_price_indices[cl], q, n)
-            self.n_estimators[profile].update_model(played_bids[cl], n)
-            self.c_estimators[profile].update_model(played_bids[cl], c)
-
-
-class Step4UCBFixedClassesLearner(MultiClassLearner):
-
-    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, class_map: dict,
-                 ucb_constant: float = 1):
-        super().__init__(environment, bids, prices)
-        self.class_map = class_map
-        self.n_classes = len(set(self.class_map.values()))
-        self.a_estimators = [est.BeUCB1Estimator(self.ps.shape[0], ucb_constant) for _ in range(self.n_classes)]
-        self.n_estimators = [est.GPUCBEstimator(bids, kernel, alpha, beta) for _ in range(self.n_classes)]
-        self.c_estimators = [est.GPUCBEstimator(bids, kernel, alpha, beta) for _ in range(self.n_classes)]
-
-    def play_round(self):
-        alphas = np.zeros(self.n_classes)
-        ps_t = np.zeros(self.n_classes)
-        ps_t_ind = np.zeros(self.n_classes, dtype=int)
-
-        for cl in range(self.n_classes):
-            if self.a_estimators[cl].get_non_pulled_arms().shape[0] == 0:
-                alphas_est = self.a_estimators[cl].provide_estimations()
-                ps_t[cl], ps_t_ind[cl] = single_class_price_opt(self.ps, alphas_est, self.env.prod_cost)
-                alphas[cl] = alphas_est[ps_t_ind[cl]]
-            else:
-                ps_t_ind[cl] = self.a_estimators[cl].get_non_pulled_arms()[0]
-                ps_t[cl] = self.ps[ps_t_ind[cl]]
-                alphas[cl] = 0.3
-
-        n_est = np.array([self.n_estimators[cl].provide_estimations(lower_bound=False) for cl in range(self.n_classes)])
-        c_est = np.array([self.c_estimators[cl].provide_estimations(lower_bound=True) for cl in range(self.n_classes)])
-
-        xs_t, xs_t_ind = multi_class_bid_opt(self.xs, ps_t, alphas, n_est, c_est, self.env.prod_cost)
-        results = self.play_and_save(self.class_map, xs_t, ps_t)
-        results = self.step_results_to_estimated_classes(results, self.class_map)
-        for cl in range(self.n_classes):
-            n, q, c = results[cl]
-            self.a_estimators[cl].update_estimations(ps_t_ind[cl], q, n)
-            self.n_estimators[cl].update_model(xs_t[cl], n)
-            self.c_estimators[cl].update_model(xs_t[cl], c)
-
-
-class Step4UCBRealClassesLearner(Step4UCBFixedClassesLearner):
-    """
-    The UCB learner that knows the true classes in advance
-    """
-
-    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, ucb_constant: float = 1):
-        super().__init__(environment, bids, prices, kernel, alpha, beta, environment.class_map, ucb_constant)
-
-
-class Step4UCBOneClassLearner(Step4UCBFixedClassesLearner):
-    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
-                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float, ucb_constant: float = 1):
-        super().__init__(environment, bids, prices, kernel, alpha, beta, {p: 0 for p in environment.user_profiles},
-                         ucb_constant)

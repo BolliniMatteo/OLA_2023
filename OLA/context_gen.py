@@ -26,6 +26,12 @@ def get_data_from_history(history: MultiClassEnvironmentHistory):
 
 
 def copy_data(data: ContextData):
+    """
+    Obs: it doesn't really copy the data, just point to the same objects
+    Overwrite data.profiles with a new object to split
+    :param data:
+    :return:
+    """
     return ContextData(data.profiles, data.bids, data.prices,
                        data.clicks, data.conversions, data.costs, data.prod_cost)
 
@@ -144,9 +150,6 @@ class ContextGenerator:
         if sorted(list(features)) != [0, 1]:
             raise ValueError("This implementation only works with features {0, 1}")
 
-        # we can generate these once for the whole dataset,
-        # then at each evaluation we use just those we need
-
         root_split_flag, root_f = self.decide_split(data, features, click_estimators, cost_estimators)
 
         contexts = []
@@ -176,3 +179,135 @@ class ContextGenerator:
             mapping[profile] = context_idx
 
         return len(contexts), mapping
+
+
+class StatefulContextGenerator:
+    """
+    A context generator that doesn't change idea.
+    If it performs a split, it doesn't change when you call update_context again
+    """
+
+    # I think that it's done
+
+    def __init__(self, environment: envs.MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
+                 kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, rng: np.random.Generator, beta: float,
+                 bound_confidence: float):
+        self.env = environment
+        self.bids = bids
+        self.prices = prices
+        self.kernel = kernel
+        self.alpha = alpha
+        self.beta = beta  # parameter to compute UCB-like lower (or upper) bound
+        self.rng = rng
+        self.log_confidence = np.log(bound_confidence)
+        self.class_map = {p: 0 for p in environment.user_profiles}
+        self.context = [set([p for p in environment.user_profiles])]
+
+    def bound(self, value, set_size, upper=False):
+        return value - np.sqrt(-self.log_confidence / (2 * set_size)) * (-1 if upper else 1)
+
+    def ucb_like_bound(self, value, sigmas, upper=False):
+        return value - np.maximum(sigmas, 1e-2) * np.sqrt(self.beta) * (-1 if upper else 1)
+
+    def update_context(self, full_data: ContextData):
+        data_l = self._split_data_to_current_context(full_data)
+        # the new list will have one data for each class (old or new)
+        new_data_l = []
+        for data in data_l:
+            value = self._evaluate(data)
+            new_data_l += self._recursive_split(data, value)
+        self._apply_new_context(new_data_l)
+        return len(self.context)
+
+    def _apply_new_context(self, data_l: list):
+        self.context = []
+        self.class_map = {}
+        for data in data_l:
+            self.context.append(data.profiles)
+            for profile in data.profiles:
+                self.class_map[profile] = len(self.context) - 1
+
+    def _evaluate(self, data: ContextData):
+        alphas_lower_bounds = self._estimate_alphas(data)
+        clicks_lower_bounds, costs_upper_bounds = self._estimate_clicks_and_costs(data)
+
+        bid, bid_index, price, price_index = single_class_opt(self.bids, self.prices, alphas_lower_bounds,
+                                                              clicks_lower_bounds, costs_upper_bounds, data.prod_cost)
+        return SingleClassHistory.reward(price, alphas_lower_bounds[price_index],
+                                         clicks_lower_bounds[bid_index], costs_upper_bounds[bid_index], data.prod_cost)
+
+    def _estimate_alphas(self, data: ContextData):
+        convs = np.zeros(self.prices.shape)
+        clicks_for_price = np.zeros(self.prices.shape)
+        # these are the clicks for price, used to estimate alpha
+        # the bound on alpha will be the H. one
+        for profile in data.profiles:
+            for t, price in enumerate(data.prices[profile]):
+                # trick: find the index of price in the array prices
+                price_index = np.argmax(self.prices == price)
+                convs[price_index] += data.conversions[profile][t]
+                clicks_for_price[price_index] += data.clicks[profile][t]
+        alphas_lower_bounds = np.zeros(self.prices.shape)
+        mask = clicks_for_price > 0
+        # set to the 0 where we don't have data (it can happen with low probability with TS)
+        alphas_lower_bounds[mask] = self.bound(convs[mask] / clicks_for_price[mask], clicks_for_price[mask])
+        return alphas_lower_bounds
+
+    def _estimate_clicks_and_costs(self, data: ContextData):
+        click_est = BaseGPEstimator(self.bids, self.kernel, self.alpha)
+        cost_est = BaseGPEstimator(self.bids, self.kernel, self.alpha)
+        # now we are sure (because the context generator doesn't change idea)
+        # that data has been treated as a single class when playing
+        # so same bid and price for every profile in it (considering only the profiles in data.profiles)
+        clicks = 0
+        costs = 0
+        played_bids = 0
+        for profile in data.profiles:
+            played_bids = np.array(data.bids[profile])
+            clicks += np.array(data.clicks[profile])
+            costs += np.array(data.costs[profile])
+        # Ignore the warning: data.profiles is non-empty, so these are arrays
+        click_est.update_model(played_bids.tolist(), clicks.tolist())
+        cost_est.update_model(played_bids.tolist(), costs.tolist())
+        clicks_lower_bounds = self.ucb_like_bound(click_est.mu_vector,
+                                                  click_est.sigma_vector)
+        costs_upper_bounds = self.ucb_like_bound(cost_est.mu_vector,
+                                                 cost_est.sigma_vector, True)
+        return clicks_lower_bounds, costs_upper_bounds
+
+    def _split_data_to_current_context(self, full_data: ContextData):
+        data = [copy_data(full_data) for _ in self.context]
+        for c in range(len(self.context)):
+            data[c].profiles = self.context[c]
+        return data
+
+    def _recursive_split(self, data: ContextData, base_value: float):
+        features = []
+        if (0, 0) in data.profiles and (0, 1) in data.profiles:
+            features.append(0)
+        if (1, 0) in data.profiles and (1, 1) in data.profiles:
+            features.append(1)
+        if len(features) == 0:
+            return [data]
+        split_flag = False
+        best_split_value = 0
+        best_value_l = 0
+        best_value_r = 0
+        best_split_feature = 0
+
+        for f in features:
+            data_l, data_r = split_data(data, f)
+            value_l = self._evaluate(data_l)
+            value_r = self._evaluate(data_r)
+            split_value = value_l + value_r
+            if split_value > best_split_value and split_value > base_value:
+                split_flag = True
+                best_value_l = value_l
+                best_value_r = value_r
+                best_split_feature = f
+        if split_flag is True:
+            data_l, data_r = split_data(data, best_split_feature)
+            return_list = self._recursive_split(data_l, best_value_l)
+            return_list += self._recursive_split(data_r, best_value_r)
+            return return_list
+        return [data]

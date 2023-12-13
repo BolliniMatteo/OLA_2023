@@ -1,7 +1,7 @@
 import numpy as np
 import environments as envs
 import optimization_utilities as op
-from base_learners import MultiClassLearner
+from OLA.multi_class_learners import MultiClassLearner
 from environments import SingleClassHistory
 
 

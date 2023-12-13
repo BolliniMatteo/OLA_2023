@@ -6,8 +6,8 @@ import warnings
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 
 import new_environment_properties as ep
-from OLA.base_learners import Step4TSContextGenLearner, Step4TSOneClassLearner, Step4TSRealClassesLearner, \
-    Step4UCBContextGenLearner, Step4UCBOneClassLearner, Step4UCBRealClassesLearner
+from OLA.multi_class_learners import Step4TSContextGenLearner, Step4TSRealClassesLearner, Step4TSOneClassLearner, \
+    Step4UCBContextGenLearner, Step4UCBRealClassesLearner, Step4UCBOneClassLearner
 from OLA.context_gen import ContextGenerator
 from OLA.environments import MultiClassEnvironment, MultiClassEnvironmentHistory
 from OLA.simulators import simulate_multi_class, plot_multi_class_sim_result, plot_multiple_single_class_results

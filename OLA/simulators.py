@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 
 from base_learners import SingleClassLearner, SingleClassLearnerNonStationary
-from base_learners import MultiClassLearner
+from OLA.multi_class_learners import MultiClassLearner
 from environments import SingleClassEnvironment, MultiClassEnvironment, SingleClassEnvironmentNonStationary
 
 
