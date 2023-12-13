@@ -1,3 +1,4 @@
+import math
 import numpy as np
 import sklearn
 from sklearn.gaussian_process import GaussianProcessRegressor
@@ -11,6 +12,91 @@ They receive data and produce estimations, but do not play
 I try to keep them independent, so they keep their state
 and do not rely on the environment history
 """
+
+
+class BeUCB1SWEstimator:
+    def __init__(self, na: int, window_size: int, c: float = 1):
+        """
+        :param na: the number of arms
+        :param c: a constant multiplicative factor for the UCB bound.
+        1 to use the default bound
+        """
+        self.na = na
+        self.pulled_per_arm = []
+        self.rewards_per_arm = []
+        self.means = np.zeros(na, dtype=float)
+        self.window_size = window_size
+        self.c = c
+        for _ in range(na):
+            arm = []
+            rewards = []
+            self.pulled_per_arm.append(arm)
+            self.rewards_per_arm.append(rewards)
+        self.rounds = 0
+
+    def get_non_pulled_arms(self):
+        """
+        :return: an array with the indices of the arms that result non-pulled,
+        in the sense that the estimation for them have never been updated by update_estimation.
+        An array is returned even in case of a single non-pulled arm.
+        An empty array of shape (0,) is returned when there aren't any non-pulled arms
+        """
+        window_play_counts = self.get_window_play_counts()
+        zero_mask = (window_play_counts == 0)
+        indices = np.arange(self.means.shape[0])
+        return indices[zero_mask]
+
+    def get_window_play_counts(self):
+        if self.rounds < self.window_size:
+            window_play_counts = np.sum(np.array(self.pulled_per_arm), axis=1)
+        else:
+            window_play_counts = np.sum(np.array(self.pulled_per_arm)[:, -self.window_size:], axis=1)
+        return window_play_counts
+
+    def window_compute_means(self):
+        if self.rounds < self.window_size:
+            sum_pulls = np.sum(np.array(self.pulled_per_arm), axis=1)
+            sum_rewards = np.sum(np.array(self.rewards_per_arm), axis=1)
+            self.means = sum_rewards / sum_pulls
+            print(self.means)
+        else:
+            sum_pulls = np.sum(np.array(self.pulled_per_arm)[:, -self.window_size:], axis=1)
+            sum_rewards = np.sum(np.array(self.rewards_per_arm)[:, -self.window_size:], axis=1)
+            self.means = sum_rewards / sum_pulls
+            print(self.means)
+
+    def provide_estimations(self):
+        """
+        Provides the estimation of the average rewards
+        If some arms have not been pulled, it returns +- inf (depending on the lower_bound) for them
+        :return: the estimations (np array)
+        """
+        window_play_counts = self.get_window_play_counts()
+        t = np.sum(window_play_counts)
+        zero_mask = (window_play_counts == 0)
+        non_zero_mask = np.logical_not(zero_mask)
+        thetas = np.copy(self.means)
+        thetas[zero_mask] = float('+inf')
+        thetas[non_zero_mask] = thetas[non_zero_mask] + self.c * np.sqrt((2 * np.log(t)) / window_play_counts)
+        return thetas
+
+    def update_estimations(self, played_arm: int, positive_rewards: int, total_rewards: int):
+        """
+        Updates the internal attributes for the estimations
+        :param played_arm: the arm that has been played in the last round
+        :param positive_rewards: the number of positive rewards (r=1) collected in the last round
+        :param total_rewards: the total rewards collected in the last round
+        :return: None
+        """
+        for i in range(self.na):
+            if i == played_arm:
+                self.pulled_per_arm[i].append(total_rewards)
+                self.rewards_per_arm[i].append(positive_rewards)
+            else:
+                self.pulled_per_arm[i].append(0)
+                self.rewards_per_arm[i].append(0)
+        self.window_compute_means()
+        self.rounds += 1
 
 
 class BeUCB1Estimator:
@@ -55,10 +141,10 @@ class BeUCB1Estimator:
         thetas = np.copy(self.means)
         if lower_bound:
             thetas[zero_mask] = float('-inf')
-            thetas[non_zero_mask] = thetas[non_zero_mask] - self.c * np.sqrt((2*np.log(t))/self.play_counts)
+            thetas[non_zero_mask] = thetas[non_zero_mask] - self.c * np.sqrt((2 * np.log(t)) / self.play_counts)
         else:
             thetas[zero_mask] = float('+inf')
-            thetas[non_zero_mask] = thetas[non_zero_mask] + self.c * np.sqrt((2*np.log(t))/self.play_counts)
+            thetas[non_zero_mask] = thetas[non_zero_mask] + self.c * np.sqrt((2 * np.log(t)) / self.play_counts)
         return thetas
 
     def update_estimations(self, played_arm: int, positive_rewards: int, total_rewards: int):
@@ -94,6 +180,7 @@ class BeTSEstimator:
     Arms are referred as indices from 0 to "number of arms - 1"
     You may want to use a dictionary, list or other sort of mappings with the true value
     """
+
     def __init__(self, na: int, rng: np.random.Generator):
         """
         :param na: the number of arms
@@ -130,6 +217,7 @@ class BaseGPEstimator:
     and updates both them and the GP when new data arrives.
     When there are no data, the means are set to 0 and the standard deviations to 3 as default values
     """
+
     def __init__(self, arms: np.ndarray, kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float):
         """
         :param arms: the available arms (here arms are the true values, not their indices)
@@ -175,6 +263,29 @@ class BaseGPEstimator:
             self.played_arms.append(played_arms)
             self.rewards.append(rewards)
         self._update_gp()
+
+
+class BeExp3Estimator:
+    def __init__(self, prices, gamma=0.0):
+        self.gamma = gamma
+        self.weights = [1.0] * len(prices)
+        self.arm_prices = prices
+        self.probability_distribution = self.distr()
+
+    def distr(self):
+        weight_sum = float(sum(self.weights))
+        return tuple((1.0 - self.gamma) * (w / weight_sum) + (self.gamma / len(self.weights)) for w in self.weights)
+
+    def provide_arm(self):
+        drawn_price = np.random.choice(self.arm_prices, size=1, p=self.probability_distribution, replace=False)[0]
+        price_idx = np.where(self.arm_prices == drawn_price)[0]
+        return drawn_price, int(price_idx)
+
+    def update_estimations(self, price_idx, reward):
+        estimated_rewards = float(reward * self.arm_prices[price_idx] / self.probability_distribution[price_idx])
+        self.weights[price_idx] = self.weights[price_idx] * math.exp(
+            estimated_rewards * self.gamma / self.arm_prices.shape[0])
+        self.probability_distribution = self.distr()
 
 
 class GPUCBEstimator(BaseGPEstimator):
