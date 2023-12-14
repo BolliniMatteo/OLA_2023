@@ -57,7 +57,7 @@ def main():
     beta = 110
     ucb_constant = 0.2
     burn_in = 0 # should be 0
-    ucb_known_classes_burn_in = 34
+    ucb_known_classes_burn_in = 20 # TODO: optimize this with the script step_4_optimize_burn_in.py
     T = 365  # should be 365
     hoeffding_bound_confidence = 0.90
 
@@ -67,7 +67,7 @@ def main():
                                                                         rng, hoeffding_bound_confidence, ucb_constant)
     learner_init_gpucb_one = lambda env: gpucb_one_learner_init(env, bids, prices, kernel, alpha, beta, ucb_constant)
 
-    n_runs = 100
+    n_runs = 2
     print(os.getcwd())
 
     print("GP-UCB learner, known classes", flush=True)
@@ -86,6 +86,10 @@ def main():
               "GP-UCB - Unknown classes using one context"]
     plot_multiple_single_class_results(results, opt_rewards, titles, True, '../Plots/step4_ucb_std.png')
     plot_multiple_single_class_results(results, opt_rewards, titles, False, '../Plots/step4_ucb.png')
+
+    results = [res_gpucb_known, res_gpucb_unknown]
+    titles = ["GP-UCB - Known classes", "GP-UCB - Unknown classes with context generation",]
+    plot_multiple_single_class_results(results, opt_rewards, titles, True, '../Plots/step4_ucb_2.png')
 
 
 if __name__ == '__main__':

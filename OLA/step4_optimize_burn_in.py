@@ -55,7 +55,7 @@ def main():
     n_runs = 5
     c = 0.2
 
-    burn_in_values = np.array([i*14 + 20 for i in range(8)])
+    burn_in_values = np.array([i*14 + 20 for i in range(6)])
     results = np.array([simulate_burn_in(burn_in, kernel, alpha, beta, c, rng, n_runs, T)
                         for burn_in in burn_in_values])
     plt.plot(burn_in_values, results)
@@ -63,6 +63,7 @@ def main():
     best_index = np.argmax(results)
     plt.scatter(burn_in_values[best_index], results[best_index], color='r')
     plt.show()
+    print("Best burn in:", burn_in_values[best_index])
 
 
 if __name__ == '__main__':
