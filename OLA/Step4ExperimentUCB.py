@@ -67,7 +67,7 @@ def main():
                                                                         rng, hoeffding_bound_confidence, ucb_constant)
     learner_init_gpucb_one = lambda env: gpucb_one_learner_init(env, bids, prices, kernel, alpha, beta, ucb_constant)
 
-    n_runs = 2
+    n_runs = 100
     print(os.getcwd())
 
     print("GP-UCB learner, known classes", flush=True)
