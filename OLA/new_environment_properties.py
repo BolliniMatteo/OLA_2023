@@ -113,7 +113,7 @@ def conversion_rate_three_phases(price: Union[float, np.ndarray], t: int):
 
 def conversion_rate_high_frequency_phases(price: Union[float, np.ndarray], t: int):
     # length of each phase
-    lengths = np.array([7, 12, 9, 17, 11])
+    lengths = np.array([5, 6, 7, 8, 5])
     ends = np.cumsum(lengths)
     period = np.sum(lengths)
     season_t = t % period

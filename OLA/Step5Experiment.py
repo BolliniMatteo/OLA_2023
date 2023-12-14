@@ -1,7 +1,7 @@
 import numpy as np
 
 from OLA.environments import SingleClassEnvironmentNonStationary, SingleClassEnvironmentNonStationaryHistory
-from OLA.base_learners import Step5UCBLearner
+from OLA.base_learners import Step5UCBLearner, Step5UCBChangeDetectorLearner
 from OLA.base_learners import Step5UCBWINLearner
 import new_environment_properties as ep
 from OLA.simulators import simulate_single_class
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     prices = ep.get_prices()
     rng = np.random.default_rng(seed=seed)
     T = 365
-    n_runs = 300
+    n_runs = 100
     c = 0.2
     opt_rewards = SingleClassEnvironmentNonStationaryHistory(env_init_step5(rng)).clairvoyant_rewards(bids, prices, T)
     print("-----Simple UCB-----")
@@ -34,10 +34,26 @@ if __name__ == '__main__':
                                             T, n_runs=n_runs)
     # plot_single_class_sim_result(sim_object_ucb1, opt_rewards)
     print("-----Window UCB-----")
-    win_size = 40
+    win_size = 90
     sim_object_win = simulate_single_class(lambda: env_init_step5(rng),
                                             bids, prices,
                                             lambda env, bids, prices: Step5UCBWINLearner(env, bids, prices, win_size, c),
                                             T, n_runs=n_runs)
     # plot_single_class_sim_result(sim_object_win, opt_rewards)
-    plot_multiple_single_class_results([sim_object_ucb1, sim_object_win], opt_rewards, ['UCB1', 'WIN-UCB1'])
+    #plot_multiple_single_class_results([sim_object_ucb1, sim_object_win], opt_rewards, ['UCB1', 'SW-UCB1'])
+    print("-----UCB-CD with CUSUM-----")
+    sim_object_ucbcd = simulate_single_class(lambda: env_init_step5(rng)
+                                             , bids
+                                             , prices
+                                             , lambda env
+                                                    , bids
+                                                    , prices: Step5UCBChangeDetectorLearner(env
+                                                                                            , bids
+                                                                                            , prices
+                                                                                            , c
+                                                                                            , 30)
+                                             , T
+                                             , n_runs=n_runs)
+    plot_multiple_single_class_results([sim_object_ucb1, sim_object_win, sim_object_ucbcd]
+                                       , opt_rewards
+                                       , ['UCB1', 'UCB-SW', 'UCB-CD'])
