@@ -57,7 +57,7 @@ if __name__ == '__main__':
     print("UCB - number of times (on average) the worst arm is played: ", worst_arm_count_ucb.count / n_runs)
     print("TS - number of times (on average) the worst arm is played: ", worst_arm_count_ts.count / n_runs)
     plot_multiple_single_class_results([sim_object_ucb1, sim_object_ts], opt_rewards, ['UCB1', 'TS'],
-                                       True, 'Plots/step1.png')
+                                       True, '../Plots/step1.png')
 
 
 """

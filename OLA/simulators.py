@@ -235,7 +235,10 @@ def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, a
     axes[2].legend()
     axes[3].legend()
     if file_name is not None:
-        plt.savefig(file_name)
+        try:
+            plt.savefig(file_name)
+        except:
+            print("Couldn't save plot on file", file_name)
     plt.show()
 
 
