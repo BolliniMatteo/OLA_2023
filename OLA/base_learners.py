@@ -332,13 +332,16 @@ class Step6EXP3Learner(SingleClassLearnerNonStationary):
     def play_round(self):
         if self.history.played_rounds() < self.ps.shape[0]:
             print('Not updating, just playing whatever arms we have')
-            p_t = self.ps[self.history.played_rounds()]
-            self.play_and_save(1, p_t)
+            print(self.history.played_rounds())
+            p_t_ind = self.history.played_rounds()
+            p_t = self.ps[p_t_ind]
+            n, q, c = self.play_and_save(1, p_t)
+            self.estimator.update_estimations(p_t_ind, q * (p_t - c) / n)
         else:
             print('Updating arms')
             p_t, p_t_ind = self.estimator.provide_arm()
             n, q, c = self.play_and_save(1, p_t)
             print('n and q: {} and {}'.format(n, q))
-            self.estimator.update_estimations(p_t_ind, q * (p_t - c) / (10 * n))
+            self.estimator.update_estimations(p_t_ind, q * (p_t - c) / n)
 #        print('New probability distributions:')
 #        print(self.estimator.probability_distribution)

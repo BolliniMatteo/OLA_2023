@@ -269,7 +269,7 @@ class BaseGPEstimator:
 
 
 class BeEXP3Estimator:
-    def __init__(self, prices, gamma=0.35):
+    def __init__(self, prices, gamma=0.4):
         self.gamma = gamma
         self.weights = [1.0] * len(prices)
         self.arm_prices = prices
