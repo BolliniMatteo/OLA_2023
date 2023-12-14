@@ -192,7 +192,8 @@ def std_operation(std, n_runs):
     return std / np.sqrt(n_runs)
 
 
-def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, algorithms: list, plot_std=False):
+def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, algorithms: list,
+                                       plot_std=False, file_name=None):
     # useful, for instance, to compare UCB and TS
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
     axes = axes.flatten()
@@ -233,6 +234,8 @@ def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, a
     axes[1].legend()
     axes[2].legend()
     axes[3].legend()
+    if file_name is not None:
+        plt.savefig(file_name)
     plt.show()
 
 

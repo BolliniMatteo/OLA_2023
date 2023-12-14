@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from typing import Union
 
@@ -36,7 +38,7 @@ if __name__ == '__main__':
     prices = ep.get_prices()
     rng = np.random.default_rng(seed=seed)
     T = 365
-    n_runs = 1000
+    n_runs = 100
     opt_rewards = SingleClassEnvironmentHistory(env_init_step1(rng)).clairvoyant_rewards(bids, prices, T)
     worst_arm_count_ucb = WorstArmCounter(prices[3])
     sim_object_ucb1 = simulate_single_class(lambda: env_init_step1(rng),
@@ -54,7 +56,8 @@ if __name__ == '__main__':
 
     print("UCB - number of times (on average) the worst arm is played: ", worst_arm_count_ucb.count / n_runs)
     print("TS - number of times (on average) the worst arm is played: ", worst_arm_count_ts.count / n_runs)
-    plot_multiple_single_class_results([sim_object_ucb1, sim_object_ts], opt_rewards, ['UCB1', 'TS'], True)
+    plot_multiple_single_class_results([sim_object_ucb1, sim_object_ts], opt_rewards, ['UCB1', 'TS'],
+                                       True, 'Plots/step1.png')
 
 
 """

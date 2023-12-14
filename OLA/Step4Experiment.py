@@ -118,14 +118,14 @@ def main():
     results = [res_gpucb_known, res_gpucb_unknown, res_gpucb_one]
     titles = ["GP-UCB - Known classes", "GP-UCB - Unknown classes with context generation",
               "GP-UCB - Unknown classes using one context"]
-    plot_multiple_single_class_results(results, opt_rewards, titles, True)
-    plot_multiple_single_class_results(results, opt_rewards, titles, False)
+    plot_multiple_single_class_results(results, opt_rewards, titles, True, 'Plots/step4_ucb_std',)
+    plot_multiple_single_class_results(results, opt_rewards, titles, False, 'Plots/step4_ucb')
 
     results = [res_ts_known, res_ts_unknown, res_ts_one]
     titles = ["GP-TS - Known classes", "GP-TS - Unknown classes with context generation",
               "GP-TS - Unknown classes using one context"]
-    plot_multiple_single_class_results(results, opt_rewards, titles, True)
-    plot_multiple_single_class_results(results, opt_rewards, titles, False)
+    plot_multiple_single_class_results(results, opt_rewards, titles, True, 'Plots/step4_ts_std')
+    plot_multiple_single_class_results(results, opt_rewards, titles, False, 'Plots/step4_ts_std')
 
     print('Over')
 
