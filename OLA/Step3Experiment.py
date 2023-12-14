@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     T = 365
     opt_rewards = SingleClassEnvironmentHistory(env_init_step3(rng)).clairvoyant_rewards(bids, prices, T)
-    n_runs = 100
+    n_runs = 5
 
     print("----UCB----")
     start_time = datetime.now()
@@ -67,4 +67,5 @@ if __name__ == '__main__':
     print("Elapsed time: ", (datetime.now()-start_time).total_seconds())
     # plot_single_class_sim_result(sim_object_ts, opt_rewards)
 
-    plot_multiple_single_class_results([sim_object_gpucb, sim_object_ts], opt_rewards, ['GP-UCB1', 'GP-TS'])
+    plot_multiple_single_class_results([sim_object_gpucb, sim_object_ts], opt_rewards,
+                                       ['GP-UCB1', 'GP-TS'], True)

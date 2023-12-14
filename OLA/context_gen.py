@@ -266,9 +266,9 @@ class StatefulContextGenerator:
             played_bids = np.array(data.bids[profile])
             clicks += np.array(data.clicks[profile])
             costs += np.array(data.costs[profile])
-        # Ignore the warning: data.profiles is non-empty, so these are arrays
-        click_est.update_model(played_bids.tolist(), clicks.tolist())
-        cost_est.update_model(played_bids.tolist(), costs.tolist())
+        # data.profiles is non-empty, so these are arrays
+        click_est.update_model(played_bids, clicks)
+        cost_est.update_model(played_bids, costs)
         clicks_lower_bounds = self.ucb_like_bound(click_est.mu_vector,
                                                   click_est.sigma_vector)
         costs_upper_bounds = self.ucb_like_bound(cost_est.mu_vector,
@@ -283,10 +283,11 @@ class StatefulContextGenerator:
 
     def _recursive_split(self, data: ContextData, base_value: float):
         features = []
+        # features that I can split
         if (0, 0) in data.profiles and (0, 1) in data.profiles:
-            features.append(0)
-        if (1, 0) in data.profiles and (1, 1) in data.profiles:
             features.append(1)
+        if (1, 0) in data.profiles and (1, 1) in data.profiles:
+            features.append(0)
         if len(features) == 0:
             return [data]
         split_flag = False

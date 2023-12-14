@@ -9,7 +9,7 @@ from OLA.environments import SingleClassEnvironment, SingleClassEnvironmentHisto
 from OLA.base_learners import Step2UCBLearner, Step2TSLearner
 import new_environment_properties as ep
 from OLA.simulators import simulate_single_class
-from OLA.simulators import plot_single_class_sim_result
+from OLA.simulators import plot_multiple_single_class_results
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 
 
@@ -89,15 +89,16 @@ if __name__ == '__main__':
     T = 365
     opt_rewards = SingleClassEnvironmentHistory(env_init_step2(rng)).clairvoyant_rewards(bids, prices, T)
 
-    n_runs = 100
+    n_runs = 5
     click_estimations = []
     costs_estimations = []
     print("----GP-UCB----")
     start_time = datetime.now()
     sim_object_gpucb = simulate_single_class(env_init, bids, prices, learner_init_gpucb, T, n_runs=n_runs,
-                                             hook_function=lambda learner: store_gp_mean_estimation(learner, click_estimations, costs_estimations))
+                                             hook_function=lambda learner: store_gp_mean_estimation(learner,
+                                                                                                    click_estimations,
+                                                                                                    costs_estimations))
     print("Elapsed time: ", (datetime.now() - start_time).total_seconds())
-    plot_single_class_sim_result(sim_object_gpucb, opt_rewards)
     plot_gp_mean_estimations(click_estimations, costs_estimations)
 
     click_estimations = []
@@ -105,7 +106,11 @@ if __name__ == '__main__':
     print("----GP-TS----")
     start_time = datetime.now()
     sim_object_ts = simulate_single_class(env_init, bids, prices, learner_init_gpts, T, n_runs=n_runs,
-                                          hook_function=lambda learner: store_gp_mean_estimation(learner, click_estimations, costs_estimations))
+                                          hook_function=lambda learner: store_gp_mean_estimation(learner,
+                                                                                                 click_estimations,
+                                                                                                 costs_estimations))
     print("Elapsed time: ", (datetime.now() - start_time).total_seconds())
-    plot_single_class_sim_result(sim_object_ts, opt_rewards)
     plot_gp_mean_estimations(click_estimations, costs_estimations)
+
+    plot_multiple_single_class_results([sim_object_gpucb, sim_object_ts], opt_rewards,
+                                       ['GP-UCB', 'GP-TS'], True)

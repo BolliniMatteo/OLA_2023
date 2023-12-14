@@ -35,7 +35,7 @@ axes = axes.flatten()
 axes[0].set_title("Expected revenue per click (alpha*margin)")
 axes[0].plot(expanded_ps, (expanded_ps - prod_cost) * ep.click_conversion_rate(expanded_ps))
 axes[0].scatter(ps, (ps - prod_cost) * ep.click_conversion_rate(ps))
-axes[0].scatter(ps[-1], (ps[-1] - prod_cost) * ep.click_conversion_rate(ps[-1]), color='r')
+axes[0].scatter(ps[3], (ps[3] - prod_cost) * ep.click_conversion_rate(ps[3]), color='r')
 
 expanded_best_bids = [op.single_class_bid_opt(xs, price,
                                               ep.click_conversion_rate(price),
@@ -63,6 +63,6 @@ rewards = SingleClassHistory.reward(ps,
 axes[1].set_title("Best reward for price (with optimal bid)")
 axes[1].plot(expanded_ps, expanded_rewards)
 axes[1].scatter(ps, rewards)
-axes[1].scatter(ps[-1], rewards[-1], color='r')
+axes[1].scatter(ps[3], rewards[3], color='r')
 
 plt.show()

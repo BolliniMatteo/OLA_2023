@@ -197,22 +197,18 @@ def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, a
         axes[3].plot(time_steps, results[i].cum_regrets_mean, label=algorithms[i], color=colors[i])
 
         if plot_std is True:
-            axes[0].plot(time_steps, results[i].inst_rewards_mean + results[i].inst_rewards_std,
-                         linestyle='dashed', color=colors[i])
-            axes[0].plot(time_steps, results[i].inst_rewards_mean - results[i].inst_rewards_std,
-                         linestyle='dashed', color=colors[i])
-            axes[1].plot(time_steps, results[i].inst_regrets_mean + results[i].inst_regrets_std,
-                         linestyle='dashed', color=colors[i])
-            axes[1].plot(time_steps, results[i].inst_regrets_mean - results[i].inst_regrets_std,
-                         linestyle='dashed', color=colors[i])
-            axes[2].plot(time_steps, results[i].cum_rewards_mean + results[i].cum_rewards_std,
-                         linestyle='dashed', color=colors[i])
-            axes[2].plot(time_steps, results[i].cum_rewards_mean - results[i].cum_rewards_std,
-                         linestyle='dashed', color=colors[i])
-            axes[3].plot(time_steps, results[i].cum_regrets_mean + results[i].cum_regrets_std,
-                         linestyle='dashed', color=colors[i])
-            axes[3].plot(time_steps, results[i].cum_regrets_mean - results[i].cum_regrets_std,
-                         linestyle='dashed', color=colors[i])
+            axes[0].fill_between(time_steps, results[i].inst_rewards_mean + np.sqrt(results[i].inst_rewards_std),
+                                 results[i].inst_rewards_mean - np.sqrt(results[i].inst_rewards_std),
+                                 color=colors[i], alpha=0.1)
+            axes[1].fill_between(time_steps, results[i].inst_regrets_mean + np.sqrt(results[i].inst_regrets_std),
+                                 results[i].inst_regrets_mean - np.sqrt(results[i].inst_regrets_std),
+                                 color=colors[i], alpha=0.1)
+            axes[2].fill_between(time_steps, results[i].cum_rewards_mean + np.sqrt(results[i].cum_rewards_std),
+                                 results[i].cum_rewards_mean - np.sqrt(results[i].cum_rewards_std),
+                                 color=colors[i], alpha=0.1)
+            axes[3].fill_between(time_steps, results[i].cum_regrets_mean + np.sqrt(results[i].cum_regrets_std),
+                                 results[i].cum_regrets_mean - np.sqrt(results[i].cum_regrets_std),
+                                 color=colors[i], alpha=0.1)
 
     axes[0].plot(time_steps, opt_rewards, label='optimal', color='green')
     axes[2].plot(time_steps, np.cumsum(opt_rewards), label='optimal', color='green')

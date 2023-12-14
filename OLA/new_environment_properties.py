@@ -11,17 +11,17 @@ n_features = 2
 n_classes = 3
 
 class_map = {
-    (0, 0): 0,
+    (0, 0): 1,
     (0, 1): 2,
-    (1, 0): 1,
-    (1, 1): 2
+    (1, 0): 0,
+    (1, 1): 1
 }
 
 user_prob_map = {
-    (0, 0): 1,
-    (0, 1): 0.7,
+    (0, 0): 0.3,
+    (0, 1): 1,
     (1, 0): 1,
-    (1, 1): 0.3
+    (1, 1): 0.7
 }
 
 
@@ -39,29 +39,34 @@ def get_production_cost():
 
 def daily_clicks_curve_multiclass(bid: Union[float, np.ndarray], customer_class: int):
     if customer_class == 0:
-        return np.floor(70 * (np.tanh(0.6 * (bid - 5)) + 1))
+        # return np.floor(70 * (np.tanh(0.6 * (bid - 5)) + 1))
+        return 70 * (np.tanh(0.7 * (bid - 5)) + 1)
     elif customer_class == 1:
-        return np.floor(70 / (1 + np.exp(-1.2 * (bid - 5))))
+        # return np.floor(70 / (1 + np.exp(-1.2 * (bid - 5))))
+        return 65 / (1 + np.exp(-1.3 * (bid - 4.5)))
     else:
-        return np.floor(60 * (np.tanh(0.4 * (bid - 5)) + 1))
+        # return np.floor(60 * (np.tanh(0.4 * (bid - 5)) + 1))
+        return 30 * (np.tanh(0.4 * (bid - 5)) + 1) + 40 / (1 + np.exp(-1.2 * (bid - 5)))
 
 
 def click_cumulative_cost_multiclass(bid: Union[float, np.ndarray], customer_class: int):
     if customer_class == 0:
-        return 300 * (np.tanh(0.6 * (bid - 6)) + 1)
+        return 300 * (np.tanh(0.6 * (bid - 6.5)) + 1)
     elif customer_class == 1:
-        return 400 / (1 + np.exp(-1.2 * (bid - 6)))
+        return 250 / (1 + np.exp(-1.3 * (bid - 6))) + 100 * (np.tanh(0.7 * (bid - 6)) + 1)
+        # return 300 / (1 + np.exp(-1.3 * (bid - 6)))
     else:
         return 250 * (np.tanh(0.4 * (bid - 6)) + 1)
 
 
 def click_conversion_rate_multiclass(price: Union[float, np.ndarray], customer_class: int):
     if customer_class == 0:
-        w1, w2, w3 = (-0.00135000, 0.0775, -0.2700)
+        # w1, w2, w3 = (-0.00135000, 0.0775, -0.2700)
+        w1, w2, w3 = (0.00155000, -0.15450000, 4.17000000)
         return w1 * (price ** 2) + w2 * price + w3
     elif customer_class == 1:
-        w1, w2, w3 = (-0.0005, 0.0100, 0.8500)
-        return w1 * (price ** 2) + w2 * price + w3
+        w1, w2, w3, w4 = (-0.00015667, 0.01905000, -0.78683333, 11.52000000)
+        return w1 * (price ** 3) + w2 * (price ** 2) + w3 * price + w4
     else:
         w1, w2, w3, w4, w5 = (-0.00000667, 0.0010, -0.0578, 1.5450, -15.3000)
         return w1 * (price ** 4) + w2 * (price ** 3) + w3 * (price ** 2) + w4 * price + w5
@@ -100,7 +105,9 @@ def conversion_rate_three_phases(price: Union[float, np.ndarray], t: int):
         w1, w2, w3 = (0.0006, -0.0620, 2.2700)
         return w1 * (price ** 2) + w2 * price + w3
     # Christmas period: larger demand... but for not too large prices
-    w1, w2, w3 = (0.00155000, -0.1535, 4.0300)
+    # w1, w2, w3 = (0.00155000, -0.1535, 4.0300)
+    # w1, w2, w3 = (0.00065000, -0.07850000, 2.72000000)
+    w1, w2, w3 = (0.00015000, -0.04350000, 2.12000000)
     return w1 * (price ** 2) + w2 * price + w3
 
 
@@ -132,7 +139,8 @@ def conversion_rate_five_phases(price: Union[float, np.ndarray], phase: int):
     if phase == 2:
         return click_conversion_rate_multiclass(price, 3)
     if phase == 3:
-        w1, w2, w3 = (0.00155000, -0.1535, 4.0300)
-        return w1 * (price ** 2) + w2 * price + w3
+        # w1, w2, w3 = (0.00155000, -0.1535, 4.0300)
+        # return w1 * (price ** 2) + w2 * price + w3
+        return conversion_rate_three_phases(price, 350)
     w1, w2, w3 = (-0.00075000, 0.0345, 0.2700)
     return w1 * (price ** 2) + w2 * price + w3

@@ -13,7 +13,7 @@ and the objects that keep track of the history and compute statistics
 class SingleClassEnvironment:
 
     def __init__(self,
-                 N: Callable[[Union[float, np.ndarray]], Union[int, np.ndarray]], en: Callable[[], int],
+                 N: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]], en: Callable[[], float],
                  C: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]], ec: Callable[[], float],
                  A: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]],
                  prod_cost: float,
@@ -62,7 +62,7 @@ class SingleClassEnvironment:
 class SingleClassEnvironmentNonStationary:
 
     def __init__(self,
-                 N: Callable[[Union[float, np.ndarray]], Union[int, np.ndarray]], en: Callable[[], int],
+                 N: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]], en: Callable[[], float],
                  C: Callable[[Union[float, np.ndarray]], Union[float, np.ndarray]], ec: Callable[[], float],
                  A: Callable[[Union[float, np.ndarray], int], Union[float, np.ndarray]],
                  prod_cost: float,
@@ -323,7 +323,7 @@ class MultiClassEnvironment:
     """
 
     def __init__(self, n_features: int, class_map: dict, user_prob_map: dict,
-                 n: Callable[[Union[float, np.ndarray], int], Union[int, np.ndarray]],
+                 n: Callable[[Union[float, np.ndarray], float], Union[float, np.ndarray]],
                  en: Callable[[], float],
                  c: Callable[[Union[float, np.ndarray], int], Union[float, np.ndarray]],
                  ec: Callable[[], float],
@@ -380,10 +380,6 @@ class MultiClassEnvironment:
             if c < 0.1:
                 c = 0.1
             result[user_prof] = (n, q, c)
-            # TODO: remove these debug lines
-            debug_1 = self.c(bid, user_class)
-            debug_2 = self.ec()
-            debug_3 = (debug_1 + debug_2) * user_prob
         return result
 
     def classes_count(self):
