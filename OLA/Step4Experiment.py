@@ -75,7 +75,7 @@ def main():
     alpha = 10
     # beta should be around 110
     beta = 110
-    ucb_constant = 2
+    ucb_constant = 0.2
     burn_in = 0 # should be 0
     ucb_known_classes_burn_in = 34
     T = 365  # should be 365
