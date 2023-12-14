@@ -76,9 +76,9 @@ def main():
     # beta should be around 110
     beta = 110
     ucb_constant = 2
-    burn_in = 0 # TODO: should be 0
-    ucb_known_classes_burn_in = 34 # TODO: optimize this hyperparameter
-    T = 365  # TODO: should be 365
+    burn_in = 0 # should be 0
+    ucb_known_classes_burn_in = 34
+    T = 365  # should be 365
     hoeffding_bound_confidence = 0.90
 
     # the ones that don't use the context gen have a large burn in to avoid even calling it
@@ -93,16 +93,16 @@ def main():
                                                                       burn_in, hoeffding_bound_confidence)
     learner_init_gpts_one = lambda env: gpts_one_learner_init(env, bids, prices, kernel, alpha, rng)
 
-    n_runs = 3
+    n_runs = 100
 
-    # print("GP-UCB learner, known classes", flush=True)
-    # res_gpucb_known = simulate_multi_class(env_init, learner_init_gpucb_known, T, n_runs).aggregate_results
-    #
-    # print("GP-UCB learner, unknown classes with context generation", flush=True)
-    # res_gpucb_unknown = simulate_multi_class(env_init, learner_init_gpucb_unknown, T, n_runs).aggregate_results
-    #
-    # print("GP-UCB learner, unknown classes using one context", flush=True)
-    # res_gpucb_one = simulate_multi_class(env_init, learner_init_gpucb_one, T, n_runs).aggregate_results
+    print("GP-UCB learner, known classes", flush=True)
+    res_gpucb_known = simulate_multi_class(env_init, learner_init_gpucb_known, T, n_runs).aggregate_results
+
+    print("GP-UCB learner, unknown classes with context generation", flush=True)
+    res_gpucb_unknown = simulate_multi_class(env_init, learner_init_gpucb_unknown, T, n_runs).aggregate_results
+
+    print("GP-UCB learner, unknown classes using one context", flush=True)
+    res_gpucb_one = simulate_multi_class(env_init, learner_init_gpucb_one, T, n_runs).aggregate_results
 
     print("GP-TS learner, known classes", flush=True)
     res_ts_known = simulate_multi_class(env_init, learner_init_gpts_known, T, n_runs).aggregate_results
@@ -115,15 +115,17 @@ def main():
 
     opt_rewards = MultiClassEnvironmentHistory(env_init()).clairvoyant_rewards(bids, prices, T)
 
-    # results = [res_gpucb_known, res_gpucb_unknown, res_gpucb_one]
-    # titles = ["GP-UCB - Known classes", "GP-UCB - Unknown classes with context generation",
-    #           "GP-UCB - Unknown classes using one context"]
-    # plot_multiple_single_class_results(results, opt_rewards, titles, True)
+    results = [res_gpucb_known, res_gpucb_unknown, res_gpucb_one]
+    titles = ["GP-UCB - Known classes", "GP-UCB - Unknown classes with context generation",
+              "GP-UCB - Unknown classes using one context"]
+    plot_multiple_single_class_results(results, opt_rewards, titles, True)
+    plot_multiple_single_class_results(results, opt_rewards, titles, False)
 
     results = [res_ts_known, res_ts_unknown, res_ts_one]
     titles = ["GP-TS - Known classes", "GP-TS - Unknown classes with context generation",
               "GP-TS - Unknown classes using one context"]
     plot_multiple_single_class_results(results, opt_rewards, titles, True)
+    plot_multiple_single_class_results(results, opt_rewards, titles, False)
 
     print('Over')
 

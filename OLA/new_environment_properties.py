@@ -113,7 +113,8 @@ def conversion_rate_three_phases(price: Union[float, np.ndarray], t: int):
 
 def conversion_rate_high_frequency_phases(price: Union[float, np.ndarray], t: int):
     # length of each phase
-    lengths = np.array([5, 6, 7, 8, 5])
+    # lengths = np.array([5, 6, 7, 8, 5])
+    lengths = np.array([10, 10, 10, 10, 10])
     ends = np.cumsum(lengths)
     period = np.sum(lengths)
     season_t = t % period
@@ -132,15 +133,20 @@ def conversion_rate_five_phases(price: Union[float, np.ndarray], phase: int):
     """
     # obs: we have 5 prices and each phase must have a different optimal price (optimize alpha*(price-cost))
     if phase == 0:
-        return click_conversion_rate_multiclass(price, 1)
+        # w1, w2, w3, w4, w5 = (-0.00000667, 0.0010, -0.0578, 1.5450, -15.3000)
+        w1, w2, w3, w4, w5 = (-0.00000667, 0.0010, -0.0578, 1.5450, -15.7000)
+        return w1 * (price ** 4) + w2 * (price ** 3) + w3 * (price ** 2) + w4 * price + w5
     if phase == 1:
-        w1, w2, w3 = (0.0006, -0.0620, 2.2700)
+        # w1, w2, w3, w4 = (-0.00015667, 0.01905000, -0.78683333, 11.52000000)
+        # return w1 * (price ** 3) + w2 * (price ** 2) + w3 * price + w4
+        w1, w2, w3 = (0.00155000, -0.15450000, 4.17000000)
         return w1 * (price ** 2) + w2 * price + w3
     if phase == 2:
-        return click_conversion_rate_multiclass(price, 3)
-    if phase == 3:
         # w1, w2, w3 = (0.00155000, -0.1535, 4.0300)
         # return w1 * (price ** 2) + w2 * price + w3
         return conversion_rate_three_phases(price, 350)
+    if phase == 3:
+        w1, w2, w3 = (0.0006, -0.0620, 2.0700)
+        return w1 * (price ** 2) + w2 * price + w3
     w1, w2, w3 = (-0.00075000, 0.0345, 0.2700)
     return w1 * (price ** 2) + w2 * price + w3

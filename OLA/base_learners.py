@@ -1,3 +1,4 @@
+import numpy as np
 import sklearn
 from abc import ABC, abstractmethod
 
@@ -325,23 +326,24 @@ class Step5UCBWINLearner(SingleClassLearnerNonStationary):
 
 
 class Step6EXP3Learner(SingleClassLearnerNonStationary):
-    def __init__(self, environment: envs.SingleClassEnvironmentNonStationary, bids: np.ndarray, prices: np.ndarray):
+    def __init__(self, environment: envs.SingleClassEnvironmentNonStationary, bids: np.ndarray, prices: np.ndarray,
+                 bid_to_play: float, gamma: float, rng: np.random.Generator):
         super().__init__(environment, bids, prices)
-        self.estimator = est.BeEXP3Estimator(prices)
+        self.estimator = est.BeEXP3Estimator(prices, rng, gamma)
+        self.bid_to_play = bid_to_play
+        # for the reward we need something scaled between 0 and 1, so we normalize
+        # alpha is already there, the margin no
+        self.max_margin = np.max(prices-environment.prod_cost)
 
     def play_round(self):
         if self.history.played_rounds() < self.ps.shape[0]:
-            print('Not updating, just playing whatever arms we have')
-            print(self.history.played_rounds())
             p_t_ind = self.history.played_rounds()
             p_t = self.ps[p_t_ind]
-            n, q, c = self.play_and_save(1, p_t)
-            self.estimator.update_estimations(p_t_ind, q * (p_t - c) / n)
+            n, q, c = self.play_and_save(self.bid_to_play, p_t)
+            value = q * (p_t - self.env.prod_cost) / n
+            self.estimator.update_estimations(p_t_ind, value / self.max_margin)
         else:
-            print('Updating arms')
             p_t, p_t_ind = self.estimator.provide_arm()
-            n, q, c = self.play_and_save(1, p_t)
-            print('n and q: {} and {}'.format(n, q))
-            self.estimator.update_estimations(p_t_ind, q * (p_t - c) / n)
-#        print('New probability distributions:')
-#        print(self.estimator.probability_distribution)
+            n, q, c = self.play_and_save(self.bid_to_play, p_t)
+            value = q * (p_t - self.env.prod_cost) / n
+            self.estimator.update_estimations(p_t_ind, value / self.max_margin)

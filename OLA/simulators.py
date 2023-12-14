@@ -14,7 +14,8 @@ class SingleClassSimResult:
     def __init__(self, inst_rewards_mean, inst_rewards_std,
                  inst_regrets_mean, inst_regrets_std,
                  cum_rewards_mean, cum_rewards_std,
-                 cum_regrets_mean, cum_regrets_std):
+                 cum_regrets_mean, cum_regrets_std,
+                 n_runs):
         self.cum_rewards_mean = cum_rewards_mean
         self.cum_rewards_std = cum_rewards_std
         self.cum_regrets_mean = cum_regrets_mean
@@ -23,6 +24,7 @@ class SingleClassSimResult:
         self.inst_regrets_std = inst_regrets_std
         self.inst_rewards_mean = inst_rewards_mean
         self.inst_rewards_std = inst_rewards_std
+        self.n_runs = n_runs
 
 
 class MultiClassSimResult:
@@ -91,7 +93,7 @@ def simulate_single_class(env_init: Callable[[], Union[SingleClassEnvironment, S
     return SingleClassSimResult(inst_rewards_mean, inst_rewards_std,
                                 inst_regrets_mean, inst_regrets_std,
                                 cum_rewards_mean, cum_rewards_std,
-                                cum_regrets_mean, cum_regrets_std)
+                                cum_regrets_mean, cum_regrets_std, n_runs)
 
 
 def simulate_multi_class(env_init: Callable[[], MultiClassEnvironment],
@@ -137,7 +139,8 @@ def simulate_multi_class(env_init: Callable[[], MultiClassEnvironment],
             np.mean(cum_rewards[cl], axis=0),
             np.std(cum_rewards[cl], axis=0),
             np.mean(cum_regrets[cl], axis=0),
-            np.std(cum_regrets[cl], axis=0)
+            np.std(cum_regrets[cl], axis=0),
+            n_runs
         ) for cl in range(n_classes)
     ], SingleClassSimResult(
         np.mean(aggr_inst_rewards, axis=0),
@@ -147,7 +150,8 @@ def simulate_multi_class(env_init: Callable[[], MultiClassEnvironment],
         np.mean(aggr_cum_rewards, axis=0),
         np.std(aggr_cum_rewards, axis=0),
         np.mean(aggr_cum_regrets, axis=0),
-        np.std(aggr_cum_regrets, axis=0)
+        np.std(aggr_cum_regrets, axis=0),
+        n_runs
     ))
 
 
@@ -184,6 +188,10 @@ def plot_single_class_sim_result(result: SingleClassSimResult, opt_rewards: np.n
     plt.show()
 
 
+def std_operation(std, n_runs):
+    return std / np.sqrt(n_runs)
+
+
 def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, algorithms: list, plot_std=False):
     # useful, for instance, to compare UCB and TS
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
@@ -197,17 +205,22 @@ def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, a
         axes[3].plot(time_steps, results[i].cum_regrets_mean, label=algorithms[i], color=colors[i])
 
         if plot_std is True:
-            axes[0].fill_between(time_steps, results[i].inst_rewards_mean + np.sqrt(results[i].inst_rewards_std),
-                                 results[i].inst_rewards_mean - np.sqrt(results[i].inst_rewards_std),
+            n_runs = results[i].n_runs
+            axes[0].fill_between(time_steps,
+                                 results[i].inst_rewards_mean + std_operation(results[i].inst_rewards_std, n_runs),
+                                 results[i].inst_rewards_mean - std_operation(results[i].inst_rewards_std, n_runs),
                                  color=colors[i], alpha=0.1)
-            axes[1].fill_between(time_steps, results[i].inst_regrets_mean + np.sqrt(results[i].inst_regrets_std),
-                                 results[i].inst_regrets_mean - np.sqrt(results[i].inst_regrets_std),
+            axes[1].fill_between(time_steps,
+                                 results[i].inst_regrets_mean + std_operation(results[i].inst_regrets_std, n_runs),
+                                 results[i].inst_regrets_mean - std_operation(results[i].inst_regrets_std, n_runs),
                                  color=colors[i], alpha=0.1)
-            axes[2].fill_between(time_steps, results[i].cum_rewards_mean + np.sqrt(results[i].cum_rewards_std),
-                                 results[i].cum_rewards_mean - np.sqrt(results[i].cum_rewards_std),
+            axes[2].fill_between(time_steps,
+                                 results[i].cum_rewards_mean + std_operation(results[i].cum_rewards_std, n_runs),
+                                 results[i].cum_rewards_mean - std_operation(results[i].cum_rewards_std, n_runs),
                                  color=colors[i], alpha=0.1)
-            axes[3].fill_between(time_steps, results[i].cum_regrets_mean + np.sqrt(results[i].cum_regrets_std),
-                                 results[i].cum_regrets_mean - np.sqrt(results[i].cum_regrets_std),
+            axes[3].fill_between(time_steps,
+                                 results[i].cum_regrets_mean + std_operation(results[i].cum_regrets_std, n_runs),
+                                 results[i].cum_regrets_mean - std_operation(results[i].cum_regrets_std, n_runs),
                                  color=colors[i], alpha=0.1)
 
     axes[0].plot(time_steps, opt_rewards, label='optimal', color='green')

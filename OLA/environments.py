@@ -323,7 +323,7 @@ class MultiClassEnvironment:
     """
 
     def __init__(self, n_features: int, class_map: dict, user_prob_map: dict,
-                 n: Callable[[Union[float, np.ndarray], float], Union[float, np.ndarray]],
+                 n: Callable[[Union[float, np.ndarray], int], Union[float, np.ndarray]],
                  en: Callable[[], float],
                  c: Callable[[Union[float, np.ndarray], int], Union[float, np.ndarray]],
                  ec: Callable[[], float],

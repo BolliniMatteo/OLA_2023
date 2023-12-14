@@ -17,14 +17,16 @@ def env_init_step6(rng: np.random.Generator):
 
     return SingleClassEnvironmentNonStationary(N, en, C, ec, A, ep.get_production_cost(), rng)
 
+
 if __name__ == '__main__':
     seed = 1000
-    bids = np.linspace(1, 10, num=1)
+    bids = np.array([70])
     prices = ep.get_prices()
     rng = np.random.default_rng(seed=seed)
     T = 365
-    n_runs = 40
-    c = 0.2
+    n_runs = 100
+    c = 0.4
+    gamma = 0.4
     opt_rewards = SingleClassEnvironmentNonStationaryHistory(env_init_step6(rng)).clairvoyant_rewards(bids, prices, T)
     print("-----UCB-SW-----")
     sim_object_ucbsw = simulate_single_class(lambda: env_init_step6(rng),
@@ -34,21 +36,21 @@ if __name__ == '__main__':
     print("-----UCB-CD-----")
     sim_object_ucbcd = simulate_single_class(lambda: env_init_step6(rng),
                                             bids, prices,
-                                            lambda env, bids, prices: Step5UCBChangeDetectorLearner(env
-                                                                                                    , bids
-                                                                                                    , prices
-                                                                                                    , c
-                                                                                                    , 30),
+                                            lambda env, bids, prices: Step5UCBChangeDetectorLearner(env,
+                                                                                                    bids,
+                                                                                                    prices,
+                                                                                                    c,
+                                                                                                    30),
                                             T, n_runs=n_runs)
     print("-----EXP3-----")
     sim_object_exp3 = simulate_single_class(lambda: env_init_step6(rng),
                                             bids, prices,
-                                            lambda env, bids, prices: Step6EXP3Learner(env
-                                                                                       , bids
-                                                                                       , prices)
+                                            lambda env, bids, prices: Step6EXP3Learner(env,
+                                                                                       bids,
+                                                                                       prices, bids[0],
+                                                                                       gamma, rng)
                                             , T
                                             , n_runs=n_runs)
-    plot_multiple_single_class_results([sim_object_ucbsw, sim_object_ucbcd, sim_object_exp3]
-                                       , opt_rewards
-                                       , ['UCB-SW', 'UCB-CD', 'EXP3'])
+    plot_multiple_single_class_results([sim_object_ucbsw, sim_object_ucbcd, sim_object_exp3],
+                                       opt_rewards, ['UCB-SW', 'UCB-CD', 'EXP3'], True)
 

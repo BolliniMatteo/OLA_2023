@@ -57,13 +57,15 @@ class BeUCB1SWEstimator:
         if self.rounds < self.window_size:
             sum_pulls = np.sum(np.array(self.pulled_per_arm), axis=1)
             sum_rewards = np.sum(np.array(self.rewards_per_arm), axis=1)
-            self.means = sum_rewards / sum_pulls
-            print(self.means)
+            self.means[sum_pulls == 0] = 0
+            self.means[sum_pulls > 0] = sum_rewards[sum_pulls > 0] / sum_pulls[sum_pulls > 0]
+            # print(self.means)
         else:
             sum_pulls = np.sum(np.array(self.pulled_per_arm)[:, -self.window_size:], axis=1)
             sum_rewards = np.sum(np.array(self.rewards_per_arm)[:, -self.window_size:], axis=1)
-            self.means = sum_rewards / sum_pulls
-            print(self.means)
+            self.means[sum_pulls == 0] = 0
+            self.means[sum_pulls > 0] = sum_rewards[sum_pulls > 0] / sum_pulls[sum_pulls > 0]
+            # print(self.means)
 
     def provide_estimations(self):
         """
@@ -269,46 +271,59 @@ class BaseGPEstimator:
 
 
 class BeEXP3Estimator:
-    def __init__(self, prices, gamma=0.4):
+    def __init__(self, prices: np.ndarray, rng: np.random.Generator, gamma=0.4):
         self.gamma = gamma
-        self.weights = [1.0] * len(prices)
+        self.weights = np.full(prices.shape[0], 1.0)
         self.arm_prices = prices
         self.probability_distribution = None
+        self.rng = rng
         self.update_distributions()
 
     def update_distributions(self):
-        weight_sum = float(sum(self.weights))
-        # print('Weights {}'.format(self.weights))
-        # print('Weight sum {}'.format(weight_sum))
-        results = []
-        for w in self.weights:
-            result = (1.0 - self.gamma) * (w / weight_sum) + (self.gamma / len(self.weights))
-            print(result)
-            results.append(result)
+        weight_sum = np.sum(self.weights)
+        results = (1.0 - self.gamma) * (self.weights / weight_sum) + (self.gamma / self.weights.shape[0])
         self.probability_distribution = results
 
-        print('Updated probability distributions {}'.format(self.probability_distribution))
-        print('-------------------------')
-
     def provide_arm(self):
-        drawn_price = np.random.choice(self.arm_prices, size=1, p=self.probability_distribution, replace=False)[0]
+        drawn_price = self.rng.choice(self.arm_prices, size=1, p=self.probability_distribution, replace=False)[0]
         price_idx = np.where(self.arm_prices == drawn_price)[0]
         return drawn_price, int(price_idx)
 
     def update_estimations(self, price_idx, reward):
-        print('Hey! I am updating arm {} with reward {}'.format(price_idx, reward))
-        print('Reward obtained is {}'.format(reward))
-        estimated_rewards = float(reward / self.probability_distribution[price_idx])
-        #print('The reward adjusted by the probability is {}'.format(estimated_rewards))
-        print('Current weight {} is being updated to...'.format(self.weights[price_idx]))
-        self.weights[price_idx] = self.weights[price_idx] * math.exp(
-            estimated_rewards * self.gamma / self.arm_prices.shape[0])
-        print('New weight {}'.format(self.weights[price_idx]))
-        # print('SO NEW WEIGHTS ARE {}'.format(self.weights))
-        # print('--------------------------------------------------')
+        reward = float(reward)
+        estimated_rewards = reward / self.probability_distribution[price_idx]
+        exp_value = estimated_rewards * self.gamma / self.arm_prices.shape[0]
+        self.weights[price_idx] = self.weights[price_idx] * math.exp(exp_value)
         self.update_distributions()
-        #print("----------------------")
-        # print(self.probability_distribution)
+
+
+class EXP3ValueEstimator:
+    def __init__(self, prices: np.ndarray, rng: np.random.Generator, beta=0.5, eta=0.7):
+        self.beta = beta
+        self.eta = eta
+        self.arm_prices = prices
+        self.rng = rng
+        self.probabilities = np.full(prices.shape, 1/prices.shape[0])
+        self.w = np.full(prices.shape, 1.0)
+
+    def provide_arm(self):
+        drawn_price = self.rng.choice(self.arm_prices, size=None, p=self.probabilities, replace=False)
+        price_idx = np.where(self.arm_prices == drawn_price)[0]
+        return drawn_price, int(price_idx)
+
+    def update_estimations(self, price_idx, reward):
+        if reward == 0:
+            # assume that ti was just very noisy
+            reward = 1
+        reward = float(reward)
+        max_decimals = 15
+        exp_value = self.eta * (reward/self.probabilities[price_idx])
+        self.w[price_idx] = self.w[price_idx] * np.exp(exp_value)
+        self.w = np.round(self.w, max_decimals)
+        w_sum = np.sum(self.w)
+        self.probabilities = (1-self.beta) * (self.w/w_sum) + (self.beta / self.w.shape[0])
+        self.probabilities = np.round(self.probabilities, max_decimals)
+        self.probabilities[-1] = 1-np.sum(self.probabilities[0:self.probabilities.shape[0]-1])
 
 
 class GPUCBEstimator(BaseGPEstimator):
