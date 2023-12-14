@@ -268,16 +268,27 @@ class BaseGPEstimator:
         self._update_gp()
 
 
-class BeExp3Estimator:
-    def __init__(self, prices, gamma=0.0):
+class BeEXP3Estimator:
+    def __init__(self, prices, gamma=0.35):
         self.gamma = gamma
         self.weights = [1.0] * len(prices)
         self.arm_prices = prices
-        self.probability_distribution = self.distr()
+        self.probability_distribution = None
+        self.update_distributions()
 
-    def distr(self):
+    def update_distributions(self):
         weight_sum = float(sum(self.weights))
-        return tuple((1.0 - self.gamma) * (w / weight_sum) + (self.gamma / len(self.weights)) for w in self.weights)
+        # print('Weights {}'.format(self.weights))
+        # print('Weight sum {}'.format(weight_sum))
+        results = []
+        for w in self.weights:
+            result = (1.0 - self.gamma) * (w / weight_sum) + (self.gamma / len(self.weights))
+            print(result)
+            results.append(result)
+        self.probability_distribution = results
+
+        print('Updated probability distributions {}'.format(self.probability_distribution))
+        print('-------------------------')
 
     def provide_arm(self):
         drawn_price = np.random.choice(self.arm_prices, size=1, p=self.probability_distribution, replace=False)[0]
@@ -285,10 +296,19 @@ class BeExp3Estimator:
         return drawn_price, int(price_idx)
 
     def update_estimations(self, price_idx, reward):
-        estimated_rewards = float(reward * self.arm_prices[price_idx] / self.probability_distribution[price_idx])
+        print('Hey! I am updating arm {} with reward {}'.format(price_idx, reward))
+        print('Reward obtained is {}'.format(reward))
+        estimated_rewards = float(reward / self.probability_distribution[price_idx])
+        #print('The reward adjusted by the probability is {}'.format(estimated_rewards))
+        print('Current weight {} is being updated to...'.format(self.weights[price_idx]))
         self.weights[price_idx] = self.weights[price_idx] * math.exp(
             estimated_rewards * self.gamma / self.arm_prices.shape[0])
-        self.probability_distribution = self.distr()
+        print('New weight {}'.format(self.weights[price_idx]))
+        # print('SO NEW WEIGHTS ARE {}'.format(self.weights))
+        # print('--------------------------------------------------')
+        self.update_distributions()
+        #print("----------------------")
+        # print(self.probability_distribution)
 
 
 class GPUCBEstimator(BaseGPEstimator):

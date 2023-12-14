@@ -24,7 +24,7 @@ if __name__ == '__main__':
     prices = ep.get_prices()
     rng = np.random.default_rng(seed=seed)
     T = 365
-    n_runs = 1000
+    n_runs = 100
     c = 0.2
     opt_rewards = SingleClassEnvironmentNonStationaryHistory(env_init_step5(rng)).clairvoyant_rewards(bids, prices, T)
     print("-----Simple UCB-----")
