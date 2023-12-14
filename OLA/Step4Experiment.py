@@ -75,7 +75,7 @@ def main():
     alpha = 10
     # beta should be around 110
     beta = 110
-    ucb_constant = 2
+    ucb_constant = 0.2
     burn_in = 0 # should be 0
     ucb_known_classes_burn_in = 34
     T = 365  # should be 365
@@ -125,7 +125,7 @@ def main():
     titles = ["GP-TS - Known classes", "GP-TS - Unknown classes with context generation",
               "GP-TS - Unknown classes using one context"]
     plot_multiple_single_class_results(results, opt_rewards, titles, True, 'Plots/step4_ts_std')
-    plot_multiple_single_class_results(results, opt_rewards, titles, False, 'Plots/step4_ts_std')
+    plot_multiple_single_class_results(results, opt_rewards, titles, False, 'Plots/step4_ts')
 
     print('Over')
 
