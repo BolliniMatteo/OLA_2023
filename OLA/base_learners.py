@@ -217,11 +217,10 @@ class Step5UCBLearner(SingleClassLearnerNonStationary):
 class Step5UCBChangeDetectorLearner(SingleClassLearnerNonStationary):
     def __init__(self, environment: envs.SingleClassEnvironmentNonStationary,
                  bids: np.ndarray, prices: np.ndarray, c: float, burn_in_steps: int,
-                 epsilon=0.05, max_num_changes=5,
-                 time_horizon=365):
+                 epsilon=0.05, h=0.3):
         super().__init__(environment, bids, prices)
         # self.h = np.log(time_horizon / max_num_changes)
-        self.h = 0.3
+        self.h = h
         self.c = c
         self.epsilon = epsilon
         self.cur_rand_walk_upper = 0
@@ -264,6 +263,8 @@ class Step5UCBChangeDetectorLearner(SingleClassLearnerNonStationary):
                 # print('self.mu0 = {}'.format(self.mu_0))
                 # print('step_upper = {}'.format(step_upper))
                 # print('step_lower = {}'.format(step_lower))
+                self.cur_rand_walk_lower = 0
+                self.cur_rand_walk_upper = 0
                 self.cur_rand_walk_lower = np.max([0, self.cur_rand_walk_lower + step_lower])
                 self.cur_rand_walk_upper = np.max([0, self.cur_rand_walk_upper + step_upper])
 

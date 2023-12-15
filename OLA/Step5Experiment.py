@@ -35,7 +35,7 @@ if __name__ == '__main__':
                                             T, n_runs=n_runs)
     # plot_single_class_sim_result(sim_object_ucb1, opt_rewards)
     print("-----Window UCB-----")
-    win_size = 90
+    win_size = 40
     sim_object_win = simulate_single_class(lambda: env_init_step5(rng),
                                             bids, prices,
                                             lambda env, bids, prices: Step5UCBWINLearner(env, bids, prices, win_size, c),
@@ -46,8 +46,9 @@ if __name__ == '__main__':
     sim_object_ucbcd = simulate_single_class(lambda: env_init_step5(rng), bids, prices,
                                              lambda env, bids, prices:
                                              Step5UCBChangeDetectorLearner(env, bids, prices,
-                                                                           c, 35, epsilon=0.05),
+                                                                           0.1, 20, epsilon=0.1, h=0.3),
                                              T, n_runs=n_runs)
+    # 0.1, 20, epsilon=0.1
 
     plot_multiple_single_class_results([sim_object_ucb1, sim_object_win, sim_object_ucbcd], opt_rewards,
                                        ['UCB1', 'UCB-SW', 'UCB-CD'], True,
