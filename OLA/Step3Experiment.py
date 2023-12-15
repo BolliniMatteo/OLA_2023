@@ -14,9 +14,9 @@ from sklearn.gaussian_process.kernels import RBF, ConstantKernel
 
 def env_init_step3(rng: np.random.Generator):
     N = ep.daily_clicks_curve
-    en = lambda: ep.daily_click_curve_noise(rng, 1)
+    en = lambda: ep.daily_click_curve_noise(rng, None)
     C = ep.click_cumulative_cost
-    ec = lambda: ep.advertising_costs_curve_noise(rng, 1)
+    ec = lambda: ep.advertising_costs_curve_noise(rng, None)
     A = ep.click_conversion_rate
 
     return SingleClassEnvironment(N, en, C, ec, A, ep.get_production_cost(), rng)
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     T = 365
     opt_rewards = SingleClassEnvironmentHistory(env_init_step3(rng)).clairvoyant_rewards(bids, prices, T)
-    n_runs = 100
+    n_runs = 2
 
     print("----UCB----")
     start_time = datetime.now()
