@@ -24,18 +24,17 @@ for c in range(3):
 
     axes[1][c].plot(xs, ep.daily_clicks_curve_multiclass(xs, c))
     # scatter points with noise
-    axes[1][c].scatter(xs, ep.daily_clicks_curve_multiclass(xs, c) + ep.daily_click_curve_noise(rng, xs.shape[0]))
+    # axes[1][c].scatter(xs, ep.daily_clicks_curve_multiclass(xs, c) + ep.daily_click_curve_noise(rng, xs.shape[0]))
     axes[1][c].set_title('Daily click class %d' % c)
 
     axes[2][c].plot(xs, ep.click_cumulative_cost_multiclass(xs, c))
-    axes[2][c].scatter(xs,
-                       ep.click_cumulative_cost_multiclass(xs, c) + ep.advertising_costs_curve_noise(rng, xs.shape[0]))
+    # axes[2][c].scatter(xs,
+    #                    ep.click_cumulative_cost_multiclass(xs, c) + ep.advertising_costs_curve_noise(rng, xs.shape[0]))
     # plot the theoretical limit: bid * clicks
     # axes[2][c].plot(xs, ep.daily_clicks_curve_multiclass(xs, c) * xs)
-    #axes[2][c].set_title('Advertising costs class %d' % c)
+    # axes[2][c].set_title('Advertising costs class %d' % c)
 # Obs: it's the environment's duty to put a threshold on the noisy clicks and costs to make sure that they don't go
 # below 0
-# obs: the "floor" in the number of clicks result in an "erratic" curve
 plt.show()
 
 """

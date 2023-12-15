@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 from typing import Union
 
@@ -8,7 +6,6 @@ from OLA.base_learners import Step1UCBLearner
 from OLA.base_learners import Step1TSLearner
 import new_environment_properties as ep
 from OLA.simulators import simulate_single_class, plot_multiple_single_class_results
-from OLA.simulators import plot_single_class_sim_result
 
 
 def env_init_step1(rng: np.random.Generator):
@@ -21,41 +18,24 @@ def env_init_step1(rng: np.random.Generator):
     return SingleClassEnvironment(N, en, C, ec, A, ep.get_production_cost(), rng)
 
 
-class WorstArmCounter:
-    def __init__(self, worst_arm):
-        self.worst_arm = worst_arm
-        self.count = 0
-
-    def count_worst_arm(self, learner: Union[Step1TSLearner, Step1TSLearner]):
-        ps = np.array(learner.history.ps)
-        mask = ps == self.worst_arm
-        self.count += np.sum(mask)
-
-
 if __name__ == '__main__':
     seed = 2000
     bids = ep.get_bids()
     prices = ep.get_prices()
     rng = np.random.default_rng(seed=seed)
     T = 365
-    n_runs = 100
+    n_runs = 3000
     opt_rewards = SingleClassEnvironmentHistory(env_init_step1(rng)).clairvoyant_rewards(bids, prices, T)
-    worst_arm_count_ucb = WorstArmCounter(prices[3])
     sim_object_ucb1 = simulate_single_class(lambda: env_init_step1(rng),
                                             bids, prices,
                                             lambda env, bids, prices: Step1UCBLearner(env, bids, prices, 0.4),
-                                            T, n_runs,
-                                            lambda learner: worst_arm_count_ucb.count_worst_arm(learner))
+                                            T, n_runs)
 
-    worst_arm_count_ts = WorstArmCounter(prices[-1])
     sim_object_ts = simulate_single_class(lambda: env_init_step1(rng),
                                           bids, prices,
                                           lambda env, bids, prices: Step1TSLearner(env, bids, prices, rng),
-                                          T, n_runs,
-                                          lambda learner: worst_arm_count_ts.count_worst_arm(learner))
+                                          T, n_runs)
 
-    print("UCB - number of times (on average) the worst arm is played: ", worst_arm_count_ucb.count / n_runs)
-    print("TS - number of times (on average) the worst arm is played: ", worst_arm_count_ts.count / n_runs)
     plot_multiple_single_class_results([sim_object_ucb1, sim_object_ts], opt_rewards, ['UCB1', 'TS'],
                                        True, '../Plots/step1.png')
 

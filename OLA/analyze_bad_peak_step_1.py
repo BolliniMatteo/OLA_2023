@@ -5,21 +5,12 @@ import new_environment_properties as ep
 import optimization_utilities as op
 
 """
-When you run UCB in step 1, the first time the arm number 5 is played
-the regret is very large
-
-That arm is very bad: alpha*margin=8
-The best reward (with the optimal bid) that it can provide is 600,
-while the second-worst arm provides 1200
-
-Consider that UCB doesn't know the true alpha (never played the arm),
-so it can't correctly optimize the bid and chooses a worst one:
-UCB1 necessarily achieves a large regret that day
-
-Obs: the two curves plotted here have the same "shape", but different scale
-This comes from the opt procedure: first optimize the price, then the bid
-So if a point A is higher then B in the first graph, it must be the same in the second graph
-otherwise the opt procedure would be incorrect
+This analysis shows the curve that step 1 is optimizing
+and the best reward that it can obtain with each price.
+Observe that the best reward is achieved when both:
+- the best price is chosen
+- the estimation of the corresponding alpha is good enough
+This is because the choice of the bid depend on the choice of the price and the estimated alpha
 
 """
 

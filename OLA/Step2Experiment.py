@@ -48,7 +48,7 @@ def store_gp_mean_estimation(learner: Union[Step2TSLearner, Step2UCBLearner], n_
     c_estimations.append(c_est.mu_vector)
 
 
-def plot_gp_mean_estimations(n_estimations: list, c_estimations: list):
+def plot_gp_mean_estimations(n_estimations: list, c_estimations: list, file_name=None):
     n_estimations = np.array(n_estimations)
     n_estimations = np.mean(n_estimations, axis=0)
     c_estimations = np.array(c_estimations)
@@ -64,6 +64,12 @@ def plot_gp_mean_estimations(n_estimations: list, c_estimations: list):
     axes[1].plot(ep.get_bids(), ep.click_cumulative_cost(ep.get_bids()), label="true value")
     axes[1].set_title("Advertising costs GP estimation")
     axes[1].legend()
+
+    if file_name is not None:
+        try:
+            plt.savefig(file_name)
+        except:
+            print("Couldn't save plot on file", file_name)
 
     plt.show()
 
@@ -89,7 +95,7 @@ if __name__ == '__main__':
     T = 365
     opt_rewards = SingleClassEnvironmentHistory(env_init_step2(rng)).clairvoyant_rewards(bids, prices, T)
 
-    n_runs = 5
+    n_runs = 100
     click_estimations = []
     costs_estimations = []
     print("----GP-UCB----")
@@ -99,7 +105,7 @@ if __name__ == '__main__':
                                                                                                     click_estimations,
                                                                                                     costs_estimations))
     print("Elapsed time: ", (datetime.now() - start_time).total_seconds())
-    plot_gp_mean_estimations(click_estimations, costs_estimations)
+    plot_gp_mean_estimations(click_estimations, costs_estimations, '../Plots/step2_ucb_curves.png')
 
     click_estimations = []
     costs_estimations = []
@@ -110,7 +116,7 @@ if __name__ == '__main__':
                                                                                                  click_estimations,
                                                                                                  costs_estimations))
     print("Elapsed time: ", (datetime.now() - start_time).total_seconds())
-    plot_gp_mean_estimations(click_estimations, costs_estimations)
+    plot_gp_mean_estimations(click_estimations, costs_estimations, '../Plots/step2_ts_curves.png')
 
     plot_multiple_single_class_results([sim_object_gpucb, sim_object_ts], opt_rewards,
-                                       ['GP-UCB', 'GP-TS'], True)
+                                       ['GP-UCB', 'GP-TS'], True, '../Plots/step2.png')
