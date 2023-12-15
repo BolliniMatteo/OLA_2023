@@ -10,7 +10,8 @@ from OLA.simulators import plot_single_class_sim_result, plot_multiple_single_cl
 
 def env_init_step5(rng: np.random.Generator):
     N = ep.daily_clicks_curve
-    en = lambda: ep.daily_click_curve_noise(rng, None) # size None returns a scalar, size 1 an array of a single element
+    en = lambda: ep.daily_click_curve_noise(rng, None)
+    # size None returns a scalar, size 1 an array of a single element
     C = ep.click_cumulative_cost
     ec = lambda: ep.advertising_costs_curve_noise(rng, None)
     A = ep.conversion_rate_three_phases
