@@ -81,7 +81,6 @@ if __name__ == '__main__':
     rng = np.random.default_rng(seed=seed)
     env_init = lambda: env_init_step2(rng)
 
-    # kernel = ConstantKernel(1.0, (1e-3, 1e3)) * RBF(1.0, (1e-3, 1e3))
     kernel = ConstantKernel(1.0, (1e-3, 1e3)) * RBF(1.0, (1e-3, 1e3))
     alpha = 10
     # beta should be around 110

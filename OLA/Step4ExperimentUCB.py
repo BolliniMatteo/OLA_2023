@@ -57,7 +57,7 @@ def main():
     beta = 110
     ucb_constant = 0.2
     burn_in = 0 # should be 0
-    ucb_known_classes_burn_in = 20 # TODO: optimize this with the script step_4_optimize_burn_in.py
+    ucb_known_classes_burn_in = 20 # optimize this with the script step_4_optimize_burn_in.py
     T = 365  # should be 365
     hoeffding_bound_confidence = 0.90
 

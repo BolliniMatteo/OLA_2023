@@ -243,7 +243,7 @@ def plot_multiple_single_class_results(results: list, opt_rewards: np.ndarray, a
 
 
 def plot_multi_class_sim_result(result: MultiClassSimResult, opt_rewards, title: str = ""):
-    # TODO: this at the moment only plots aggregate results
+    # This can be modified to provide a more detailed plot for the multi-class case
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(12, 9))
     axes = axes.flatten()
     fig.suptitle(title)

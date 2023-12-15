@@ -1,4 +1,3 @@
-import numpy as np
 import sklearn
 from abc import ABC, abstractmethod
 
@@ -14,11 +13,6 @@ A learner usually has to:
 - instantiate and use the estimators that it needs
 - at each round, get the estimations, optimize, play and update the estimators
 """
-
-
-# these functions use np to optimize over multiple classes
-# you can also optimize each class independently without using np parallelization,
-# and probably you won't notice the difference
 
 
 class SingleClassLearner(ABC):

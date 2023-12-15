@@ -5,7 +5,6 @@ import environments as envs
 from estimators import BaseGPEstimator
 from OLA.optimization_utilities import single_class_opt
 from environments import SingleClassHistory, MultiClassEnvironmentHistory
-from abc import ABC, abstractmethod
 
 
 class ContextData:

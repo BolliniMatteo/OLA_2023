@@ -1,18 +1,16 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from typing import Union
 
-from OLA.environments import SingleClassEnvironment,SingleClassEnvironmentHistory
+from OLA.environments import SingleClassEnvironment
 from OLA.base_learners import Step1UCBLearner
-from OLA.base_learners import Step1TSLearner
 import new_environment_properties as ep
-from OLA.simulators import simulate_single_class, plot_multiple_single_class_results
-from OLA.simulators import plot_single_class_sim_result
+from OLA.simulators import simulate_single_class
 
 
 def env_init_step1(rng: np.random.Generator):
     N = ep.daily_clicks_curve
-    en = lambda: ep.daily_click_curve_noise(rng, None) # size None returns a scalar, size 1 an array of a single element
+    en = lambda: ep.daily_click_curve_noise(rng, None)
+    # size None returns a scalar, size 1 an array of a single element
     C = ep.click_cumulative_cost
     ec = lambda: ep.advertising_costs_curve_noise(rng, None)
     A = ep.click_conversion_rate

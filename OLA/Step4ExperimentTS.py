@@ -32,8 +32,6 @@ def gpts_known_learner_init(env: MultiClassEnvironment, bids: np.ndarray, prices
 def gpts_unknown_learner_init(env: MultiClassEnvironment, bids: np.ndarray, prices: np.ndarray,
                               kernel: sklearn.gaussian_process.kernels.Kernel, alpha: float, beta: float,
                               rng: np.random.Generator, burn_in: int, bound_confidence: float):
-    # context_gen = ContextGenerator(env, bids, prices, kernel, alpha, rng, beta, bound_confidence)
-    # return Step4TSContextGenLearner(env, bids, prices, kernel, alpha, rng, context_gen, burn_in)
     context_gen = StatefulContextGenerator(env, bids, prices, kernel, alpha, rng, beta, bound_confidence)
     return Step4TSStatefulContextLearner(env, bids, prices, kernel, alpha, rng, context_gen, burn_in)
 

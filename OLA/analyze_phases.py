@@ -1,10 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from environments import SingleClassEnvironment
 import new_environment_properties as ep
-import optimization_utilities as op
 
-# currently: verify that the 5 phases for step 6 have ach one a different optimum
+# verify that the 5 phases for step 6 have ach one a different optimum
 
 xs = ep.get_bids()
 ps = ep.get_prices()
