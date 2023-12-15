@@ -5,7 +5,7 @@ from OLA.base_learners import Step5UCBLearner, Step5UCBChangeDetectorLearner
 from OLA.base_learners import Step5UCBWINLearner
 import new_environment_properties as ep
 from OLA.simulators import simulate_single_class
-from OLA.simulators import plot_single_class_sim_result, plot_multiple_single_class_results
+from OLA.simulators import plot_multiple_single_class_results
 
 
 def env_init_step5(rng: np.random.Generator):
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     prices = ep.get_prices()
     rng = np.random.default_rng(seed=seed)
     T = 365
-    n_runs = 100
+    n_runs = 500
     c = 0.2
     opt_rewards = SingleClassEnvironmentNonStationaryHistory(env_init_step5(rng)).clairvoyant_rewards(bids, prices, T)
     print("-----Simple UCB-----")
@@ -41,20 +41,14 @@ if __name__ == '__main__':
                                             lambda env, bids, prices: Step5UCBWINLearner(env, bids, prices, win_size, c),
                                             T, n_runs=n_runs)
     # plot_single_class_sim_result(sim_object_win, opt_rewards)
-    #plot_multiple_single_class_results([sim_object_ucb1, sim_object_win], opt_rewards, ['UCB1', 'SW-UCB1'])
+    # plot_multiple_single_class_results([sim_object_ucb1, sim_object_win], opt_rewards, ['UCB1', 'SW-UCB1'])
     print("-----UCB-CD with CUSUM-----")
-    sim_object_ucbcd = simulate_single_class(lambda: env_init_step5(rng)
-                                             , bids
-                                             , prices
-                                             , lambda env
-                                                    , bids
-                                                    , prices: Step5UCBChangeDetectorLearner(env
-                                                                                            , bids
-                                                                                            , prices
-                                                                                            , c
-                                                                                            , 30)
-                                             , T
-                                             , n_runs=n_runs)
-    plot_multiple_single_class_results([sim_object_ucb1, sim_object_win, sim_object_ucbcd]
-                                       , opt_rewards
-                                       , ['UCB1', 'UCB-SW', 'UCB-CD'])
+    sim_object_ucbcd = simulate_single_class(lambda: env_init_step5(rng), bids, prices,
+                                             lambda env, bids, prices:
+                                             Step5UCBChangeDetectorLearner(env, bids, prices,
+                                                                           c, 35, epsilon=0.05),
+                                             T, n_runs=n_runs)
+
+    plot_multiple_single_class_results([sim_object_ucb1, sim_object_win, sim_object_ucbcd], opt_rewards,
+                                       ['UCB1', 'UCB-SW', 'UCB-CD'], True,
+                                       '../Plots/step5.png')
