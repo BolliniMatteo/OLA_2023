@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     T = 365
     opt_rewards = SingleClassEnvironmentHistory(env_init_step3(rng)).clairvoyant_rewards(bids, prices, T)
-    n_runs = 2
+    n_runs = 100
 
     print("----UCB----")
     start_time = datetime.now()
