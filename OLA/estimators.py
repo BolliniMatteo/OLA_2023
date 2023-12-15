@@ -297,35 +297,6 @@ class BeEXP3Estimator:
         self.update_distributions()
 
 
-class EXP3ValueEstimator:
-    def __init__(self, prices: np.ndarray, rng: np.random.Generator, beta=0.5, eta=0.7):
-        self.beta = beta
-        self.eta = eta
-        self.arm_prices = prices
-        self.rng = rng
-        self.probabilities = np.full(prices.shape, 1/prices.shape[0])
-        self.w = np.full(prices.shape, 1.0)
-
-    def provide_arm(self):
-        drawn_price = self.rng.choice(self.arm_prices, size=None, p=self.probabilities, replace=False)
-        price_idx = np.where(self.arm_prices == drawn_price)[0]
-        return drawn_price, int(price_idx)
-
-    def update_estimations(self, price_idx, reward):
-        if reward == 0:
-            # assume that ti was just very noisy
-            reward = 1
-        reward = float(reward)
-        max_decimals = 15
-        exp_value = self.eta * (reward/self.probabilities[price_idx])
-        self.w[price_idx] = self.w[price_idx] * np.exp(exp_value)
-        self.w = np.round(self.w, max_decimals)
-        w_sum = np.sum(self.w)
-        self.probabilities = (1-self.beta) * (self.w/w_sum) + (self.beta / self.w.shape[0])
-        self.probabilities = np.round(self.probabilities, max_decimals)
-        self.probabilities[-1] = 1-np.sum(self.probabilities[0:self.probabilities.shape[0]-1])
-
-
 class GPUCBEstimator(BaseGPEstimator):
     """
     An object that performs GP-UCB1 on Bernoulli-like arms

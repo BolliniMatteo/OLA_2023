@@ -1,19 +1,20 @@
 import numpy as np
 
 from OLA.environments import SingleClassEnvironmentNonStationary, SingleClassEnvironmentNonStationaryHistory
-from OLA.base_learners import Step5UCBLearner, Step5UCBChangeDetectorLearner, Step6EXP3Learner
+from OLA.base_learners import Step5UCBChangeDetectorLearner, Step6EXP3Learner
 from OLA.base_learners import Step5UCBWINLearner
 import new_environment_properties as ep
 from OLA.simulators import simulate_single_class
-from OLA.simulators import plot_single_class_sim_result, plot_multiple_single_class_results
+from OLA.simulators import plot_multiple_single_class_results
 
 
-def env_init_step6(rng: np.random.Generator):
+def env_init_step6_3_phases(rng: np.random.Generator):
     N = ep.daily_clicks_curve
-    en = lambda: ep.daily_click_curve_noise(rng, None) # size None returns a scalar, size 1 an array of a single element
+    en = lambda: ep.daily_click_curve_noise(rng, None)
+    # size None returns a scalar, size 1 an array of a single element
     C = ep.click_cumulative_cost
     ec = lambda: ep.advertising_costs_curve_noise(rng, None)
-    A = ep.conversion_rate_high_frequency_phases
+    A = ep.conversion_rate_three_phases
 
     return SingleClassEnvironmentNonStationary(N, en, C, ec, A, ep.get_production_cost(), rng)
 
@@ -25,25 +26,26 @@ if __name__ == '__main__':
     rng = np.random.default_rng(seed=seed)
     T = 365
     n_runs = 500
-    c = 0.4
+    c = 0.2
     gamma = 0.4
-    opt_rewards = SingleClassEnvironmentNonStationaryHistory(env_init_step6(rng)).clairvoyant_rewards(bids, prices, T)
+    opt_rewards = SingleClassEnvironmentNonStationaryHistory(env_init_step6_3_phases(rng)).clairvoyant_rewards(bids, prices, T)
     print("-----UCB-SW-----")
-    sim_object_ucbsw = simulate_single_class(lambda: env_init_step6(rng),
+    sim_object_ucbsw = simulate_single_class(lambda: env_init_step6_3_phases(rng),
                                             bids, prices,
-                                            lambda env, bids, prices: Step5UCBWINLearner(env, bids, prices, 30, 5),
+                                            lambda env, bids, prices: Step5UCBWINLearner(env, bids, prices, 40, c),
                                             T, n_runs=n_runs)
     print("-----UCB-CD-----")
-    sim_object_ucbcd = simulate_single_class(lambda: env_init_step6(rng),
+    sim_object_ucbcd = simulate_single_class(lambda: env_init_step6_3_phases(rng),
                                             bids, prices,
                                             lambda env, bids, prices: Step5UCBChangeDetectorLearner(env,
                                                                                                     bids,
                                                                                                     prices,
-                                                                                                    c,
-                                                                                                    30),
+                                                                                                    0.1,
+                                                                                                    20,
+                                                                                                    0.1, 0.3),
                                             T, n_runs=n_runs)
     print("-----EXP3-----")
-    sim_object_exp3 = simulate_single_class(lambda: env_init_step6(rng),
+    sim_object_exp3 = simulate_single_class(lambda: env_init_step6_3_phases(rng),
                                             bids, prices,
                                             lambda env, bids, prices: Step6EXP3Learner(env,
                                                                                        bids,
@@ -53,5 +55,5 @@ if __name__ == '__main__':
                                             , n_runs=n_runs)
     plot_multiple_single_class_results([sim_object_ucbsw, sim_object_ucbcd, sim_object_exp3],
                                        opt_rewards, ['UCB-SW', 'UCB-CD', 'EXP3'], True,
-                                       '../Plots/step6.png')
+                                       '../Plots/step6_3_phases.png')
 
