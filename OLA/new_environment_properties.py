@@ -111,6 +111,10 @@ def conversion_rate_three_phases(price: Union[float, np.ndarray], t: int):
     return w1 * (price ** 2) + w2 * price + w3
 
 
+def get_three_phases_moments():
+    return 10, 250, 330
+
+
 def conversion_rate_high_frequency_phases(price: Union[float, np.ndarray], t: int):
     # length of each phase
     # lengths = np.array([5, 6, 7, 8, 5])
